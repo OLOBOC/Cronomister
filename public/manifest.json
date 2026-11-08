@@ -1,0 +1,17 @@
+{
+  "name": "Cronomister · Escuela de Fútbol Mareo",
+  "short_name": "Cronomister",
+  "description": "Control de equipos, minutaje por eventos y asistencia técnica para fútbol base.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#10141f",
+  "theme_color": "#c01c1c",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
