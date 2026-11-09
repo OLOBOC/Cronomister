@@ -1,11 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { UserProfile } from '@/types';
-import {
-  hasPermission,
-  assertPermission,
-  DEFAULT_DELEGATE_PERMISSIONS,
-  DEFAULT_ADMIN_PERMISSIONS,
-} from './permissions';
+import { hasPermission, assertPermission } from './permissions';
 import { ATTENDANCE_LABELS, CONVOCATION_LABELS, MINUTES_SOURCE_LABELS } from './terminology';
 
 describe('Terminología oficial de Mareo', () => {
