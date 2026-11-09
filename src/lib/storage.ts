@@ -80,7 +80,7 @@ function setToStorage<T>(key: string, value: T): void {
 export function initStore() {
   if (typeof window === 'undefined') return;
 
-  const STORE_VERSION = 'cronomister_v4_clean_attendance';
+  const STORE_VERSION = 'cronomister_v5_clean_auth';
   const currentVersion = localStorage.getItem('cronomister_store_version');
 
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
@@ -112,8 +112,9 @@ export function initStore() {
       // No iniciar sesión automáticamente por defecto en nuevos dispositivos para proteger el acceso de Admin
       localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
     } else {
-      // Actualización a v4: limpiar todas las asistencias a petición del míster para empezar de cero
+      // Actualización a v5: limpiar asistencias para empezar de cero y forzar login individual
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
 
       // Sincronizar los calendarios de Pre C y Debutantes A y plantillas
       const prevMatches = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
