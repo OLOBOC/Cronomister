@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { loginUser } from '@/lib/storage';
+import { loginUser, saveCloudUserToStorage, setCurrentUser } from '@/lib/storage';
+import { supabase } from '@/lib/supabase';
 import { APP_CONFIG } from '@/config/appConfig';
 import { Lock, Mail, ShieldAlert, ArrowRight, CheckCircle2, KeyRound } from 'lucide-react';
 import { UserProfile } from '@/types';
@@ -19,13 +20,48 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
   const [resetEmail, setResetEmail] = useState('');
   const [resetSuccess, setResetSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
 
+    const trimmedEmail = email.trim().toLowerCase();
+
     try {
-      const result = loginUser(email, password);
+      // 1. Intento de autenticación en la nube mediante Supabase Auth
+      if (supabase) {
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password,
+        });
+
+        if (authData?.user) {
+          const userMeta = authData.user.user_metadata || {};
+          const userProfile: UserProfile = {
+            id: authData.user.id,
+            email: authData.user.email || trimmedEmail,
+            name: userMeta.name || trimmedEmail.split('@')[0],
+            role: (userMeta.role as 'admin' | 'delegate') || 'delegate',
+            status: (userMeta.status as 'active' | 'invited' | 'disabled') || 'active',
+            teamIds: userMeta.teamIds || ['team-prec'],
+            permissionsByTeam: userMeta.permissionsByTeam || {},
+          };
+
+          saveCloudUserToStorage(userProfile);
+          setCurrentUser(userProfile.id);
+          onLoginSuccess(userProfile);
+          return;
+        }
+
+        if (authErr && authErr.message.includes('Invalid login credentials')) {
+          setError('Contraseña o correo electrónico incorrectos.');
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // 2. Fallback de autenticación local / offline
+      const result = loginUser(trimmedEmail, password);
       if (result.success && result.user) {
         onLoginSuccess(result.user);
       } else {

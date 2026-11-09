@@ -248,6 +248,30 @@ export function setCurrentUser(userId: string) {
   }
 }
 
+export function saveCloudUserToStorage(user: UserProfile): void {
+  const users = getUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === user.email.toLowerCase());
+  if (idx === -1) {
+    users.push(user);
+  } else {
+    users[idx] = { ...users[idx], ...user };
+  }
+  setToStorage(STORAGE_KEYS.USERS, users);
+}
+
+export function syncUsersFromCloud(cloudUsers: UserProfile[]): void {
+  const users = getUsers();
+  cloudUsers.forEach((cu) => {
+    const idx = users.findIndex((u) => u.email.toLowerCase() === cu.email.toLowerCase());
+    if (idx === -1) {
+      users.push(cu);
+    } else {
+      users[idx] = { ...users[idx], ...cu };
+    }
+  });
+  setToStorage(STORAGE_KEYS.USERS, users);
+}
+
 export function inviteUser(
   email: string,
   name: string,
