@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Team, UserProfile } from '@/types';
-import { X, Check, AlertTriangle, Shield, UserCheck } from 'lucide-react';
+import { X, Check, AlertTriangle, Shield, UserCheck, LogOut } from 'lucide-react';
 
 interface TeamSelectorModalProps {
   isOpen: boolean;
@@ -11,9 +11,10 @@ interface TeamSelectorModalProps {
   currentTeamId: string;
   onSelectTeam: (teamId: string) => void;
   currentUser: UserProfile;
-  allUsers: UserProfile[];
-  onSwitchUser: (userId: string) => void;
+  allUsers?: UserProfile[];
+  onSwitchUser?: (userId: string) => void;
   onOpenSettings: (teamId: string) => void;
+  onLogout?: () => void;
 }
 
 export function TeamSelectorModal({
@@ -23,9 +24,8 @@ export function TeamSelectorModal({
   currentTeamId,
   onSelectTeam,
   currentUser,
-  allUsers,
-  onSwitchUser,
   onOpenSettings,
+  onLogout,
 }: TeamSelectorModalProps) {
   if (!isOpen) return null;
 
@@ -108,48 +108,31 @@ export function TeamSelectorModal({
           })}
         </div>
 
-        {/* Selector de Usuario / Rol para pruebas y control */}
-        <div className="pt-4 border-t border-[var(--line)]">
-          <div className="text-xs font-bold text-[var(--mute)] uppercase tracking-wider mb-2 flex items-center gap-1">
-            <Shield className="w-3.5 h-3.5" /> Cambiar perfil de usuario (Simulación)
+        {/* Sesión activa */}
+        <div className="pt-4 border-t border-[var(--line)] flex items-center justify-between">
+          <div className="flex items-center gap-2 text-xs">
+            {currentUser.role === 'admin' ? (
+              <Shield className="w-4 h-4 text-[var(--red)]" />
+            ) : (
+              <UserCheck className="w-4 h-4 text-emerald-600" />
+            )}
+            <div>
+              <div className="font-bold">{currentUser.name}</div>
+              <div className="text-[11px] text-[var(--mute)]">{currentUser.email}</div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-2">
-            {allUsers.map((u) => {
-              const isCurrent = u.id === currentUser.id;
-              return (
-                <button
-                  key={u.id}
-                  onClick={() => onSwitchUser(u.id)}
-                  className={`flex items-center justify-between p-2.5 rounded-xl text-left border transition-all text-xs ${
-                    isCurrent
-                      ? 'border-[var(--gold)] bg-[var(--warnbg)]/30 font-bold'
-                      : 'border-[var(--line)] hover:bg-[var(--line)]/50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {u.role === 'admin' ? (
-                      <Shield className="w-4 h-4 text-[var(--red)]" />
-                    ) : (
-                      <UserCheck className="w-4 h-4 text-emerald-600" />
-                    )}
-                    <div>
-                      <div>{u.name}</div>
-                      <div className="text-[11px] text-[var(--mute)] font-normal">{u.email}</div>
-                    </div>
-                  </div>
-                  <span
-                    className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      u.role === 'admin'
-                        ? 'bg-[var(--red)] text-white'
-                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
-                    }`}
-                  >
-                    {u.role === 'admin' ? 'Entrenador' : 'Delegado'}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          {onLogout && (
+            <button
+              onClick={() => {
+                onClose();
+                onLogout();
+              }}
+              className="px-3 py-1.5 rounded-lg border border-[var(--line)] hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 dark:hover:bg-rose-950/30 text-xs font-bold text-[var(--mute)] transition-colors flex items-center gap-1.5"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Cerrar sesión</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -9,17 +9,20 @@ import {
   getUsers,
   getAvailableTeamsForCurrentUser,
   setCurrentTeamId,
-  setCurrentUser,
   getPlayers,
   getMatches,
   getSessions,
   getAttendance,
   getNotes,
+  logoutUser,
+  isAuthenticated,
 } from '@/lib/storage';
 import { Team, Player, Match, TrainingSession, AttendanceRecord, AppNote, UserProfile } from '@/types';
 import { Header } from '@/components/layout/Header';
 import { TeamSelectorModal } from '@/components/teams/TeamSelectorModal';
 import { TeamSettingsModal } from '@/components/teams/TeamSettingsModal';
+import { AdminPanelModal } from '@/components/admin/AdminPanelModal';
+import { LoginView } from '@/components/auth/LoginView';
 import { TeamSummaryView } from '@/components/summary/TeamSummaryView';
 import { TrainingView } from '@/components/training/TrainingView';
 import { MatchListView } from '@/components/matches/MatchListView';
@@ -30,6 +33,7 @@ import { PlayerFichaView } from '@/components/player-profile/PlayerFichaView';
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Estados principales de navegación
   const [currentTab, setCurrentTab] = useState<'resumen' | 'entreno' | 'partidos' | 'jugadores'>('resumen');
@@ -40,6 +44,7 @@ export default function Home() {
   // Modales
   const [isTeamSelectorOpen, setIsTeamSelectorOpen] = useState(false);
   const [isTeamSettingsOpen, setIsTeamSettingsOpen] = useState(false);
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   // Datos reactivos del Store
   const [currentUser, setCurrentUserState] = useState<UserProfile | null>(null);
@@ -73,6 +78,8 @@ export default function Home() {
   useEffect(() => {
     setIsClient(true);
     initStore();
+    const authStatus = isAuthenticated();
+    setIsLoggedIn(authStatus);
     syncDataFromStore();
 
     const unsubscribe = subscribeToStore(() => {
@@ -82,7 +89,22 @@ export default function Home() {
     return () => unsubscribe();
   }, []);
 
-  if (!isClient || !currentUser || !currentTeam) {
+  const handleLoginSuccess = (user: UserProfile) => {
+    setCurrentUserState(user);
+    setIsLoggedIn(true);
+    syncDataFromStore();
+  };
+
+  const handleLogout = () => {
+    logoutUser();
+    setIsLoggedIn(false);
+    setCurrentUserState(null);
+    setSelectedPlayer(null);
+    setSelectedMatch(null);
+    setActiveLiveMatch(null);
+  };
+
+  if (!isClient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--mute)] text-sm">
         <div className="flex flex-col items-center gap-2">
@@ -93,7 +115,29 @@ export default function Home() {
     );
   }
 
-  // Manejadores de cambio de equipo y usuario
+  // Si no está autenticado, mostrar pantalla de inicio de sesión real (sin registro público)
+  if (!isLoggedIn || !currentUser) {
+    return <LoginView onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  if (!currentTeam) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--mute)] text-sm p-4 text-center">
+        <div className="space-y-3">
+          <p className="font-bold text-base text-[var(--ink)]">No tienes ningún equipo asignado actualmente.</p>
+          <p className="text-xs">Contacta con el Entrenador Principal de Mareo para que te asigne a un equipo.</p>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-2 bg-[var(--red)] text-white text-xs font-bold rounded-xl"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Manejador de cambio de equipo
   const handleSelectTeam = (teamId: string) => {
     setCurrentTeamId(teamId);
     setSelectedPlayer(null);
@@ -102,14 +146,9 @@ export default function Home() {
     syncDataFromStore();
   };
 
-  const handleSwitchUser = (userId: string) => {
-    setCurrentUser(userId);
-    syncDataFromStore();
-  };
-
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)] flex flex-col">
-      {/* Cabecera unificada */}
+      {/* Cabecera unificada con acceso directo a Admin Panel para el entrenador */}
       <Header
         currentTeam={currentTeam}
         currentUser={currentUser}
@@ -122,6 +161,8 @@ export default function Home() {
         }}
         onOpenTeamSelector={() => setIsTeamSelectorOpen(true)}
         onOpenTeamSettings={() => setIsTeamSettingsOpen(true)}
+        onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Contenedor Principal Responsive (Mobile First, Max-W-2xl centrado en escritorio) */}
@@ -211,8 +252,8 @@ export default function Home() {
         onSelectTeam={handleSelectTeam}
         currentUser={currentUser}
         allUsers={allUsers}
-        onSwitchUser={handleSwitchUser}
         onOpenSettings={() => setIsTeamSettingsOpen(true)}
+        onLogout={handleLogout}
       />
 
       <TeamSettingsModal
@@ -220,6 +261,15 @@ export default function Home() {
         onClose={() => setIsTeamSettingsOpen(false)}
         team={currentTeam}
         currentUser={currentUser}
+      />
+
+      {/* Panel de Administración exclusivo del Entrenador Principal */}
+      <AdminPanelModal
+        isOpen={isAdminPanelOpen}
+        onClose={() => setIsAdminPanelOpen(false)}
+        currentUser={currentUser}
+        teams={availableTeams}
+        onRefresh={syncDataFromStore}
       />
     </div>
   );
