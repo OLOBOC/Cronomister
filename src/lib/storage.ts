@@ -80,7 +80,7 @@ function setToStorage<T>(key: string, value: T): void {
 export function initStore() {
   if (typeof window === 'undefined') return;
 
-  const STORE_VERSION = 'cronomister_v5_clean_auth';
+  const STORE_VERSION = 'cronomister_v6_delegate_alvaro';
   const currentVersion = localStorage.getItem('cronomister_store_version');
 
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
@@ -112,9 +112,21 @@ export function initStore() {
       // No iniciar sesión automáticamente por defecto en nuevos dispositivos para proteger el acceso de Admin
       localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
     } else {
-      // Actualización a v5: limpiar asistencias para empezar de cero y forzar login individual
+      // Actualización a v6: limpiar asistencias y sincronizar usuarios autorizados (ej. Álvaro)
       localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+
+      const prevUsers = getFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, []);
+      SEED_USERS.forEach((su) => {
+        const idx = prevUsers.findIndex((u) => u.email.toLowerCase() === su.email.toLowerCase());
+        if (idx === -1) {
+          prevUsers.push(su);
+        } else {
+          // Asegurar contraseña y datos activos
+          prevUsers[idx] = { ...su, ...prevUsers[idx], status: 'active', password: prevUsers[idx].password || su.password };
+        }
+      });
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(prevUsers));
 
       // Sincronizar los calendarios de Pre C y Debutantes A y plantillas
       const prevMatches = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);

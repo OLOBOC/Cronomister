@@ -39,6 +39,44 @@ export const SEED_USERS: UserProfile[] = [
       },
     },
   },
+  {
+    id: 'user-delegate-alvaro',
+    email: 'alvaropolvorosa@gmail.com',
+    name: 'Álvaro Polvorosa',
+    role: 'delegate',
+    status: 'active',
+    teamIds: ['team-prec', 'team-deba', 'team-debb'],
+    password: 'mareo2026',
+    permissionsByTeam: {
+      'team-prec': {
+        pass_attendance: true,
+        edit_convocatoria: true,
+        control_match: true,
+        add_notes: true,
+        edit_past_data: false,
+        download_pdf: false,
+        view_stats: false,
+      },
+      'team-deba': {
+        pass_attendance: true,
+        edit_convocatoria: true,
+        control_match: true,
+        add_notes: true,
+        edit_past_data: false,
+        download_pdf: false,
+        view_stats: false,
+      },
+      'team-debb': {
+        pass_attendance: true,
+        edit_convocatoria: true,
+        control_match: true,
+        add_notes: true,
+        edit_past_data: false,
+        download_pdf: false,
+        view_stats: false,
+      },
+    },
+  },
 ];
 
 export function getInitialSeedData() {
