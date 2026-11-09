@@ -1,11 +1,39 @@
 export type UserRole = 'admin' | 'delegate';
+export type UserStatus = 'active' | 'invited' | 'disabled';
+
+export type PermissionKey =
+  | 'pass_attendance'    // Pasar lista
+  | 'edit_convocatoria'  // Editar convocatoria y alineaciones
+  | 'control_match'      // Iniciar y controlar partidos
+  | 'add_notes'          // Anotar notas
+  | 'edit_past_data'     // Editar datos pasados
+  | 'download_pdf'       // Descargar PDF
+  | 'view_stats';        // Ver estadísticas
+
+export type UserPermissions = Record<PermissionKey, boolean>;
 
 export interface UserProfile {
   id: string;
   email: string;
   name: string;
   role: UserRole;
+  status?: UserStatus;
   teamIds: string[];
+  permissionsByTeam?: Record<string, UserPermissions>;
+  invitedAt?: string;
+  password?: string;
+}
+
+export interface ActivityLogEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  action: string;
+  details: string;
+  previousValue?: string;
+  newValue?: string;
+  teamId?: string;
+  timestamp: string;
 }
 
 export interface TeamSettings {
@@ -35,10 +63,25 @@ export interface Player {
 }
 
 // Estados de asistencia a entrenamientos
-// S = Vino (Asistió)
-// A = No vino pero avisó (Falta avisada)
-// N = No vino y no avisó (Falta sin avisar)
+// S = Asistió
+// A = No asistió – avisó (Falta avisada)
+// N = No asistió – no avisó (Falta sin avisar)
 export type AttendanceStatus = 'S' | 'A' | 'N';
+
+// Motivos de falta en entrenamiento (opcional)
+export type AttendanceReason = 'Lesión' | 'Enfermedad' | 'Familiar' | 'Otros' | null;
+
+// Motivo de no convocatoria en partido
+export type NonConvocationReason =
+  | 'Decisión técnica'
+  | 'Sanción'
+  | 'Lesión'
+  | 'Trámite de federación'
+  | 'Otros'
+  | null;
+
+// Estado de ausencia de un convocado que no se presenta
+export type MatchAbsenceStatus = 'warned' | 'no-warning' | null;
 
 export interface TrainingSession {
   id: string;          // Formato YYYY-MM-DD
@@ -53,6 +96,7 @@ export interface AttendanceRecord {
   sessionId: string;
   playerId: string;
   status: AttendanceStatus;
+  reason?: AttendanceReason;  // Motivo de la falta (solo si status !== 'S')
   note?: string;
   updatedAt: string;
 }
@@ -61,13 +105,18 @@ export type MatchStatus = 'scheduled' | 'in_progress' | 'finished';
 export type MinutesSource = 'direct' | 'manual' | 'estimated';
 export type MatchType = 'league' | 'tournament' | 'friendly';
 
+// Estado de convocatoria en partido:
+// J = Convocado (jugó o estuvo en banquillo)
+// X = No convocado
 export interface MatchPlayerRecord {
   playerId: string;
-  status: 'J' | 'X'; // J = Jugó / Convocado, X = No convocado / No vino
+  status: 'J' | 'X'; // J = Convocado, X = No convocado
   isStarter: boolean;
   minutes: number;
   source: MinutesSource;
   note?: string;
+  nonConvocationReason?: NonConvocationReason; // Solo cuando status === 'X'
+  matchAbsenceStatus?: MatchAbsenceStatus;      // Convocado que no se presenta al partido
 }
 
 export interface Match {
@@ -119,18 +168,18 @@ export interface MatchEvent {
 
 export interface PlayerStats {
   matchesTotal: number;
-  matchesAttended: number; // Partidos que jugó (st === 'J')
+  matchesAttended: number; // Partidos que jugó (status === 'J')
   matchesAsStarter: number;
   totalMinutes: number;
   averageMinutesPerMatch: number; // totalMinutes / matchesAttended
   percentMatchTime: number;       // totalMinutes / (matchesAttended * matchDuration)
   attendanceCount: {
-    attended: number;  // S
-    excused: number;   // A
-    unexcused: number; // N
+    attended: number;  // S = Asistió
+    excused: number;   // A = No asistió – avisó
+    unexcused: number; // N = No asistió – no avisó
     totalSessions: number;
   };
-  attendancePercent: number;      // attended / totalSessions
+  attendancePercent: number; // attended / totalSessions
 }
 
 export interface AppNote {

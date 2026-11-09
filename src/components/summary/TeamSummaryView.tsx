@@ -12,6 +12,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { calculatePlayerKPIs } from '@/lib/minuteEngine';
+import { hasPermission } from '@/lib/permissions';
 
 interface TeamSummaryViewProps {
   team: Team;
@@ -37,6 +38,7 @@ export function TeamSummaryView({
   onSelectPlayer,
 }: TeamSummaryViewProps) {
   const isAdmin = currentUser.role === 'admin';
+  const canViewStats = hasPermission(currentUser, team.id, 'view_stats');
   const totalDuration = team.settings.halfDurationMinutes * 2;
 
   // Próximo partido (el primero programado sin minutos o el siguiente en fecha)
@@ -150,112 +152,124 @@ export function TeamSummaryView({
         <ChevronRight className="w-4 h-4 opacity-75" />
       </button>
 
-      {/* Gráfica de Minutos por Jugador y Media del Equipo */}
-      <div className="bg-[var(--card)] p-4 rounded-2xl border border-[var(--line)] shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-extrabold text-sm tracking-tight flex items-center gap-1.5">
-            <Clock className="w-4 h-4 text-[var(--red)]" />
-            <span>Minutos disputados (Total plantilla)</span>
-          </h3>
-          <span className="text-xs font-bold text-[var(--mute)]">
-            Media equipo: {teamAverageMinutes.toFixed(0)} min
-          </span>
-        </div>
+      {/* Gráficas de Rendimiento (controladas por permiso de visualización de estadísticas) */}
+      {canViewStats ? (
+        <>
+          {/* Gráfica de Minutos por Jugador y Media del Equipo */}
+          <div className="bg-[var(--card)] p-4 rounded-2xl border border-[var(--line)] shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-tight flex items-center gap-1.5">
+                <Clock className="w-4 h-4 text-[var(--red)]" />
+                <span>Minutos disputados (Total plantilla)</span>
+              </h3>
+              <span className="text-xs font-bold text-[var(--mute)]">
+                Media equipo: {teamAverageMinutes.toFixed(0)} min
+              </span>
+            </div>
 
-        {playerStats.length === 0 ? (
-          <p className="text-xs text-[var(--mute)] text-center py-4">No hay jugadores registrados en el equipo.</p>
-        ) : (
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {playerStats
-              .sort((a, b) => b.kpis.totalMinutes - a.kpis.totalMinutes)
-              .map(({ player, kpis }) => {
-                const percent = (kpis.totalMinutes / maxPlayerMinutes) * 100;
+            {playerStats.length === 0 ? (
+              <p className="text-xs text-[var(--mute)] text-center py-4">No hay jugadores registrados en el equipo.</p>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {playerStats
+                  .sort((a, b) => b.kpis.totalMinutes - a.kpis.totalMinutes)
+                  .map(({ player, kpis }) => {
+                    const percent = (kpis.totalMinutes / maxPlayerMinutes) * 100;
 
-                return (
-                  <div
-                    key={player.id}
-                    onClick={() => onSelectPlayer(player)}
-                    className="p-1 rounded-lg hover:bg-[var(--bg)] cursor-pointer transition-colors space-y-1"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 font-bold text-[var(--mute)] text-[11px] text-right">
-                          {player.dorsal ?? '—'}
-                        </span>
-                        <span className="font-semibold text-[var(--ink)] truncate max-w-[150px]">
-                          {player.fullName}
-                        </span>
-                      </div>
-                      <span className="font-bold tabular-clock text-[var(--ink)]">
-                        {kpis.totalMinutes} min
-                      </span>
-                    </div>
-
-                    <div className="h-2 rounded-full bg-[var(--line)] overflow-hidden">
+                    return (
                       <div
-                        className="h-full bg-[var(--red)] rounded-full transition-all duration-300"
-                        style={{ width: `${percent}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </div>
+                        key={player.id}
+                        onClick={() => onSelectPlayer(player)}
+                        className="p-1 rounded-lg hover:bg-[var(--bg)] cursor-pointer transition-colors space-y-1"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <span className="w-5 font-bold text-[var(--mute)] text-[11px] text-right">
+                              {player.dorsal ?? '—'}
+                            </span>
+                            <span className="font-semibold text-[var(--ink)] truncate max-w-[150px]">
+                              {player.fullName}
+                            </span>
+                          </div>
+                          <span className="font-bold tabular-clock text-[var(--ink)]">
+                            {kpis.totalMinutes} min
+                          </span>
+                        </div>
 
-      {/* Gráfica de Asistencia por Jugador */}
-      <div className="bg-[var(--card)] p-4 rounded-2xl border border-[var(--line)] shadow-xs space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-extrabold text-sm tracking-tight flex items-center gap-1.5">
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-            <span>Asistencia por jugador a entrenos</span>
-          </h3>
-          <div className="flex items-center gap-2 text-[10px] font-bold">
-            <span className="text-emerald-700 dark:text-emerald-300">■ Vino</span>
-            <span className="text-amber-700 dark:text-amber-300">■ Avisó</span>
-            <span className="text-rose-700 dark:text-rose-300">■ Sin avisar</span>
+                        <div className="h-2 rounded-full bg-[var(--line)] overflow-hidden">
+                          <div
+                            className="h-full bg-[var(--red)] rounded-full transition-all duration-300"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
+
+          {/* Gráfica de Asistencia por Jugador */}
+          <div className="bg-[var(--card)] p-4 rounded-2xl border border-[var(--line)] shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-extrabold text-sm tracking-tight flex items-center gap-1.5">
+                <TrendingUp className="w-4 h-4 text-emerald-600" />
+                <span>Asistencia por jugador a entrenos</span>
+              </h3>
+              <div className="flex items-center gap-2 text-[10px] font-bold">
+                <span className="text-emerald-700 dark:text-emerald-300">■ Asistió</span>
+                <span className="text-amber-700 dark:text-amber-300">■ Falta avisada</span>
+                <span className="text-rose-700 dark:text-rose-300">■ Falta sin avisar</span>
+              </div>
+            </div>
+
+            {playerStats.length === 0 ? (
+              <p className="text-xs text-[var(--mute)] text-center py-4">Sin datos de asistencia.</p>
+            ) : (
+              <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                {playerStats
+                  .sort((a, b) => b.kpis.attendancePercent - a.kpis.attendancePercent)
+                  .map(({ player, kpis }) => {
+                    const total = kpis.attendanceCount.totalSessions;
+                    const attendedPct = total > 0 ? (kpis.attendanceCount.attended / total) * 100 : 0;
+                    const excusedPct = total > 0 ? (kpis.attendanceCount.excused / total) * 100 : 0;
+                    const unexcusedPct = total > 0 ? (kpis.attendanceCount.unexcused / total) * 100 : 0;
+
+                    return (
+                      <div
+                        key={player.id}
+                        onClick={() => onSelectPlayer(player)}
+                        className="p-1 rounded-lg hover:bg-[var(--bg)] cursor-pointer transition-colors space-y-1"
+                      >
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-[var(--ink)] truncate max-w-[160px]">
+                            {player.fullName}
+                          </span>
+                          <span className="font-bold text-[var(--ink)]">
+                            {total > 0 ? `${Math.round(kpis.attendancePercent * 100)}%` : '—'}
+                          </span>
+                        </div>
+
+                        <div className="h-2 rounded-full bg-[var(--line)] overflow-hidden flex">
+                          <div className="bg-emerald-500 h-full" style={{ width: `${attendedPct}%` }} />
+                          <div className="bg-amber-400 h-full" style={{ width: `${excusedPct}%` }} />
+                          <div className="bg-rose-500 h-full" style={{ width: `${unexcusedPct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="p-4 rounded-2xl bg-[var(--card)] border border-[var(--line)] text-center text-xs space-y-1 shadow-xs">
+          <p className="font-bold text-[var(--ink)]">Estadísticas comparativas de equipo reservadas</p>
+          <p className="text-[var(--mute)]">
+            El acceso a las gráficas acumuladas de minutos y asistencia requiere permiso concedido por el Entrenador Principal.
+          </p>
         </div>
-
-        {playerStats.length === 0 ? (
-          <p className="text-xs text-[var(--mute)] text-center py-4">Sin datos de asistencia.</p>
-        ) : (
-          <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-            {playerStats
-              .sort((a, b) => b.kpis.attendancePercent - a.kpis.attendancePercent)
-              .map(({ player, kpis }) => {
-                const total = kpis.attendanceCount.totalSessions;
-                const attendedPct = total > 0 ? (kpis.attendanceCount.attended / total) * 100 : 0;
-                const excusedPct = total > 0 ? (kpis.attendanceCount.excused / total) * 100 : 0;
-                const unexcusedPct = total > 0 ? (kpis.attendanceCount.unexcused / total) * 100 : 0;
-
-                return (
-                  <div
-                    key={player.id}
-                    onClick={() => onSelectPlayer(player)}
-                    className="p-1 rounded-lg hover:bg-[var(--bg)] cursor-pointer transition-colors space-y-1"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-[var(--ink)] truncate max-w-[160px]">
-                        {player.fullName}
-                      </span>
-                      <span className="font-bold text-[var(--ink)]">
-                        {total > 0 ? `${Math.round(kpis.attendancePercent * 100)}%` : '—'}
-                      </span>
-                    </div>
-
-                    <div className="h-2 rounded-full bg-[var(--line)] overflow-hidden flex">
-                      <div className="bg-emerald-500 h-full" style={{ width: `${attendedPct}%` }} />
-                      <div className="bg-amber-400 h-full" style={{ width: `${excusedPct}%` }} />
-                      <div className="bg-rose-500 h-full" style={{ width: `${unexcusedPct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }

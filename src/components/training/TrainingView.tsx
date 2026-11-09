@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Team, Player, TrainingSession, AttendanceRecord } from '@/types';
+import { Team, Player, TrainingSession, AttendanceRecord, AttendanceReason } from '@/types';
 import {
   Calendar,
   Plus,
@@ -11,6 +11,7 @@ import {
   MessageSquare,
   Sparkles,
   ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
 import {
   getSessions,
@@ -19,6 +20,13 @@ import {
   getAttendance,
   setAttendanceRecord,
 } from '@/lib/storage';
+import {
+  ATTENDANCE_LABELS,
+  ATTENDANCE_SHORT_LABELS,
+  ATTENDANCE_PILL_LABELS,
+  ATTENDANCE_COLORS,
+  ABSENCE_REASON_OPTIONS,
+} from '@/lib/terminology';
 
 interface TrainingViewProps {
   team: Team;
@@ -39,21 +47,17 @@ export function TrainingView({ team, players }: TrainingViewProps) {
   const [newDateInput, setNewDateInput] = useState(todayStr);
   const [openPlayerNoteId, setOpenPlayerNoteId] = useState<string | null>(null);
 
-  // Carga inicial y reactiva
   const reloadData = () => {
     const sess = getSessions(team.id);
     setSessions(sess);
 
-    // Si no hay fecha seleccionada o la actual no está, seleccionar la más cercana a hoy
     const current = sess.find((s) => s.date === selectedDate);
     if (!current) {
       if (sess.length > 0) {
-        // Encontrar la más cercana a hoy
         const nextOrLast = sess.find((s) => s.date >= todayStr) || sess[sess.length - 1];
         setSelectedDate(nextOrLast.date);
         setGeneralNote(nextOrLast.generalNote || '');
       } else {
-        // Crear sesión de hoy
         const initialSess = getOrCreateSession(todayStr, team.id);
         setSessions([initialSess]);
         setSelectedDate(todayStr);
@@ -68,6 +72,7 @@ export function TrainingView({ team, players }: TrainingViewProps) {
 
   useEffect(() => {
     reloadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team.id, selectedDate]);
 
   const handleSelectDate = (date: string) => {
@@ -97,18 +102,25 @@ export function TrainingView({ team, players }: TrainingViewProps) {
     updateSessionNote(selectedDate, text, team.id);
   };
 
-  // Asistencia en 2 toques:
-  // Si pulsa Vino -> estado 'S'
-  // Si pulsa No vino -> si no estaba 'A' o 'N', pone 'N' (Sin avisar por defecto)
-  // Sub-opciones cuando no viene: 'A' (Avisó) o 'N' (Sin avisar)
-  const handleSetAttendance = (playerId: string, status: 'S' | 'A' | 'N') => {
-    // Si la fecha es futura, bloquear
+  const handleSetAttendance = (
+    playerId: string,
+    status: 'S' | 'A' | 'N',
+    reason?: AttendanceReason
+  ) => {
     if (selectedDate > todayStr) {
       alert('No se pueden registrar asistencias futuras.');
       return;
     }
-
-    setAttendanceRecord(selectedDate, playerId, status);
+    const existing = attendanceList.find(
+      (a) => a.sessionId === selectedDate && a.playerId === playerId
+    );
+    setAttendanceRecord(
+      selectedDate,
+      playerId,
+      status,
+      existing?.note,
+      reason !== undefined ? reason : existing?.reason ?? null
+    );
     setAttendanceList(getAttendance(team.id));
   };
 
@@ -117,7 +129,7 @@ export function TrainingView({ team, players }: TrainingViewProps) {
       (a) => a.sessionId === selectedDate && a.playerId === playerId
     );
     const currentStatus = existing?.status || 'S';
-    setAttendanceRecord(selectedDate, playerId, currentStatus, noteText);
+    setAttendanceRecord(selectedDate, playerId, currentStatus, noteText, existing?.reason ?? null);
     setAttendanceList(getAttendance(team.id));
   };
 
@@ -186,14 +198,20 @@ export function TrainingView({ team, players }: TrainingViewProps) {
 
         {/* Resumen de asistencia en píldoras */}
         <div className="flex items-center gap-2 pt-1 flex-wrap">
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-            <Check className="w-3 h-3" /> Vino {countAttended}
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-bold ${ATTENDANCE_COLORS.S.bg} ${ATTENDANCE_COLORS.S.text} ${ATTENDANCE_COLORS.S.border} border flex items-center gap-1`}
+          >
+            <Check className="w-3 h-3" /> {ATTENDANCE_PILL_LABELS.S} {countAttended}
           </span>
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300 dark:border-amber-800 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" /> Avisó {countExcused}
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-bold ${ATTENDANCE_COLORS.A.bg} ${ATTENDANCE_COLORS.A.text} ${ATTENDANCE_COLORS.A.border} border flex items-center gap-1`}
+          >
+            <AlertCircle className="w-3 h-3" /> {ATTENDANCE_PILL_LABELS.A} {countExcused}
           </span>
-          <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 border border-rose-300 dark:border-rose-800 flex items-center gap-1">
-            <X className="w-3 h-3" /> Sin avisar {countUnexcused}
+          <span
+            className={`px-2.5 py-1 rounded-full text-xs font-bold ${ATTENDANCE_COLORS.N.bg} ${ATTENDANCE_COLORS.N.text} ${ATTENDANCE_COLORS.N.border} border flex items-center gap-1`}
+          >
+            <X className="w-3 h-3" /> {ATTENDANCE_PILL_LABELS.N} {countUnexcused}
           </span>
         </div>
 
@@ -214,6 +232,12 @@ export function TrainingView({ team, players }: TrainingViewProps) {
           <span>{players.length} jugadores</span>
         </div>
 
+        {players.length === 0 && (
+          <p className="text-xs text-[var(--mute)] text-center py-8">
+            No hay jugadores en la plantilla de este equipo.
+          </p>
+        )}
+
         {players.map((player) => {
           const rec = sessionAttendance.find((a) => a.playerId === player.id);
           const status = rec?.status;
@@ -226,7 +250,15 @@ export function TrainingView({ team, players }: TrainingViewProps) {
           return (
             <div
               key={player.id}
-              className="p-3.5 rounded-xl bg-[var(--card)] border border-[var(--line)] shadow-xs space-y-2"
+              className={`p-3.5 rounded-xl bg-[var(--card)] border shadow-xs space-y-2 transition-colors ${
+                isAttended
+                  ? 'border-emerald-400/50 dark:border-emerald-700/50'
+                  : isExcused
+                  ? 'border-amber-400/50 dark:border-amber-700/50'
+                  : isUnexcused
+                  ? 'border-rose-400/50 dark:border-rose-700/50'
+                  : 'border-[var(--line)]'
+              }`}
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
@@ -239,19 +271,27 @@ export function TrainingView({ team, players }: TrainingViewProps) {
                       <span className="text-[11px] text-[var(--mute)]">{player.position}</span>
                     )}
                   </div>
+                  {/* Indicador de estado actual */}
+                  {status && (
+                    <span
+                      className={`hidden sm:inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold border ${ATTENDANCE_COLORS[status].bg} ${ATTENDANCE_COLORS[status].text} ${ATTENDANCE_COLORS[status].border}`}
+                    >
+                      {ATTENDANCE_SHORT_LABELS[status]}
+                    </span>
+                  )}
                 </div>
 
-                {/* Botones de acción rápida: Vino / No vino / Anotación */}
+                {/* Botones de acción rápida: Asistió / No asistió / Anotación */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => handleSetAttendance(player.id, 'S')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                       isAttended
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        ? `${ATTENDANCE_COLORS.S.activeBg} ${ATTENDANCE_COLORS.S.activeText} ${ATTENDANCE_COLORS.S.activeBorder} shadow-xs`
                         : 'bg-[var(--bg)] text-[var(--ink)] border-[var(--line)] hover:border-emerald-500'
                     }`}
                   >
-                    Vino
+                    {ATTENDANCE_LABELS.S}
                   </button>
 
                   <button
@@ -259,12 +299,12 @@ export function TrainingView({ team, players }: TrainingViewProps) {
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                       isAbsent
                         ? isExcused
-                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                          : 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                          ? `${ATTENDANCE_COLORS.A.activeBg} ${ATTENDANCE_COLORS.A.activeText} ${ATTENDANCE_COLORS.A.activeBorder} shadow-xs`
+                          : `${ATTENDANCE_COLORS.N.activeBg} ${ATTENDANCE_COLORS.N.activeText} ${ATTENDANCE_COLORS.N.activeBorder} shadow-xs`
                         : 'bg-[var(--bg)] text-[var(--ink)] border-[var(--line)] hover:border-rose-500'
                     }`}
                   >
-                    No vino
+                    No asistió
                   </button>
 
                   <button
@@ -282,38 +322,67 @@ export function TrainingView({ team, players }: TrainingViewProps) {
                 </div>
               </div>
 
-              {/* Sub-selector de Falta: Avisó vs No avisó (segundo toque intuitivo) */}
+              {/* Sub-selector cuando no asistió: Avisó vs No avisó + Motivo */}
               {isAbsent && (
-                <div className="pt-2 border-t border-[var(--line)]/60 flex items-center justify-between text-xs animate-in fade-in duration-150">
-                  <span className="text-[var(--mute)] font-medium">Motivo de la ausencia:</span>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleSetAttendance(player.id, 'A')}
-                      className={`px-3 py-1 rounded-lg font-bold border transition-all ${
-                        isExcused
-                          ? 'bg-amber-500 text-white border-amber-500'
-                          : 'bg-[var(--bg)] text-amber-700 dark:text-amber-300 border-[var(--line)] hover:border-amber-400'
-                      }`}
-                    >
-                      Avisó
-                    </button>
-                    <button
-                      onClick={() => handleSetAttendance(player.id, 'N')}
-                      className={`px-3 py-1 rounded-lg font-bold border transition-all ${
-                        isUnexcused
-                          ? 'bg-rose-600 text-white border-rose-600'
-                          : 'bg-[var(--bg)] text-rose-700 dark:text-rose-300 border-[var(--line)] hover:border-rose-400'
-                      }`}
-                    >
-                      Sin avisar
-                    </button>
+                <div className="pt-2 border-t border-[var(--line)]/60 space-y-2 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-[var(--mute)] font-medium">Tipo de falta:</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleSetAttendance(player.id, 'A', rec?.reason ?? null)}
+                        className={`px-3 py-1 rounded-lg font-bold border transition-all text-xs ${
+                          isExcused
+                            ? `${ATTENDANCE_COLORS.A.activeBg} ${ATTENDANCE_COLORS.A.activeText} ${ATTENDANCE_COLORS.A.activeBorder}`
+                            : 'bg-[var(--bg)] text-amber-700 dark:text-amber-300 border-[var(--line)] hover:border-amber-400'
+                        }`}
+                      >
+                        Avisó
+                      </button>
+                      <button
+                        onClick={() => handleSetAttendance(player.id, 'N', rec?.reason ?? null)}
+                        className={`px-3 py-1 rounded-lg font-bold border transition-all text-xs ${
+                          isUnexcused
+                            ? `${ATTENDANCE_COLORS.N.activeBg} ${ATTENDANCE_COLORS.N.activeText} ${ATTENDANCE_COLORS.N.activeBorder}`
+                            : 'bg-[var(--bg)] text-rose-700 dark:text-rose-300 border-[var(--line)] hover:border-rose-400'
+                        }`}
+                      >
+                        Sin avisar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Motivo de la falta (opcional) */}
+                  <div className="flex items-start gap-2 text-xs">
+                    <span className="text-[var(--mute)] font-medium shrink-0 mt-0.5">Motivo:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {ABSENCE_REASON_OPTIONS.map((reason) => (
+                        <button
+                          key={reason}
+                          onClick={() =>
+                            handleSetAttendance(
+                              player.id,
+                              status as 'A' | 'N',
+                              rec?.reason === reason ? null : reason
+                            )
+                          }
+                          className={`px-2 py-0.5 rounded-lg border text-[11px] font-semibold transition-all ${
+                            rec?.reason === reason
+                              ? 'bg-[var(--ink)] text-[var(--bg)] border-[var(--ink)]'
+                              : 'bg-[var(--bg)] text-[var(--mute)] border-[var(--line)] hover:border-[var(--mute)]'
+                          }`}
+                        >
+                          {reason}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
 
               {/* Input desplegable para la nota del jugador */}
               {(noteOpen || rec?.note) && (
-                <div className="pt-2">
+                <div className="pt-2 flex items-center gap-2">
+                  <ChevronRight className="w-3 h-3 text-[var(--mute)] shrink-0" />
                   <input
                     type="text"
                     value={rec?.note || ''}

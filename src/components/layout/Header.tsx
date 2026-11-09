@@ -3,7 +3,7 @@
 import React from 'react';
 import { APP_CONFIG } from '@/config/appConfig';
 import { Team, UserProfile } from '@/types';
-import { Users, Settings, Shield, UserCheck } from 'lucide-react';
+import { Users, Settings, Shield, UserCheck, ShieldAlert, LogOut } from 'lucide-react';
 
 interface HeaderProps {
   currentTeam: Team | null;
@@ -12,6 +12,8 @@ interface HeaderProps {
   onTabChange: (tab: 'resumen' | 'entreno' | 'partidos' | 'jugadores') => void;
   onOpenTeamSelector: () => void;
   onOpenTeamSettings: () => void;
+  onOpenAdminPanel?: () => void;
+  onLogout?: () => void;
 }
 
 export function Header({
@@ -21,6 +23,8 @@ export function Header({
   onTabChange,
   onOpenTeamSelector,
   onOpenTeamSettings,
+  onOpenAdminPanel,
+  onLogout,
 }: HeaderProps) {
   const tabs = [
     { key: 'resumen', label: 'Resumen' },
@@ -28,6 +32,8 @@ export function Header({
     { key: 'partidos', label: 'Partidos' },
     { key: 'jugadores', label: 'Jugadores' },
   ] as const;
+
+  const isAdmin = currentUser.role === 'admin';
 
   return (
     <header className="sticky top-0 z-40 bg-[var(--red)] text-white shadow-md">
@@ -47,7 +53,7 @@ export function Header({
                 </span>
               </div>
               <div className="text-[11px] text-white/80 flex items-center gap-1">
-                {currentUser.role === 'admin' ? (
+                {isAdmin ? (
                   <span className="inline-flex items-center gap-0.5 font-semibold text-amber-200">
                     <Shield className="w-3 h-3" /> Entrenador
                   </span>
@@ -62,14 +68,31 @@ export function Header({
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={onOpenTeamSettings}
-              className="p-2 rounded-lg bg-white/15 hover:bg-white/25 active:bg-white/30 text-white transition-colors"
-              title="Ajustes de equipo"
-              aria-label="Ajustes de equipo"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            {/* Botón directo de Panel Admin para el entrenador */}
+            {isAdmin && onOpenAdminPanel && (
+              <button
+                onClick={onOpenAdminPanel}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-400 text-black font-extrabold text-xs shadow-xs hover:bg-amber-300 transition-colors"
+                title="Panel de Administración (Usuarios, Permisos y Auditoría)"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Admin</span>
+              </button>
+            )}
+
+            {/* Ajustes de equipo (solo admin) */}
+            {isAdmin && (
+              <button
+                onClick={onOpenTeamSettings}
+                className="p-2 rounded-lg bg-white/15 hover:bg-white/25 active:bg-white/30 text-white transition-colors"
+                title="Ajustes de equipo"
+                aria-label="Ajustes de equipo"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Selector de equipos asignados */}
             <button
               onClick={onOpenTeamSelector}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 active:bg-white/30 text-xs font-semibold text-white transition-colors"
@@ -77,6 +100,18 @@ export function Header({
               <Users className="w-3.5 h-3.5" />
               <span>Equipos</span>
             </button>
+
+            {/* Cerrar sesión */}
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="p-2 rounded-lg bg-white/15 hover:bg-rose-500/80 active:bg-rose-600 text-white transition-colors"
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
 
