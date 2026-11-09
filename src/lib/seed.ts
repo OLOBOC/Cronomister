@@ -6,14 +6,38 @@ export const SEED_USERS: UserProfile[] = [
     email: 'entrenador@mareo.es',
     name: 'Entrenador Principal',
     role: 'admin',
+    status: 'active',
     teamIds: ['team-prec', 'team-debb', 'team-deba'],
+    password: 'mareo2026', // Contraseña inicial para pruebas
   },
   {
     id: 'user-delegate-1',
     email: 'delegado@mareo.es',
     name: 'Delegado de Campo',
     role: 'delegate',
+    status: 'active',
     teamIds: ['team-prec', 'team-deba'],
+    password: 'mareo2026',
+    permissionsByTeam: {
+      'team-prec': {
+        pass_attendance: true,
+        edit_convocatoria: true,
+        control_match: true,
+        add_notes: true,
+        edit_past_data: false,
+        download_pdf: false,
+        view_stats: false,
+      },
+      'team-deba': {
+        pass_attendance: true,
+        edit_convocatoria: true,
+        control_match: true,
+        add_notes: true,
+        edit_past_data: false,
+        download_pdf: false,
+        view_stats: false,
+      },
+    },
   },
 ];
 
@@ -178,7 +202,7 @@ export function getInitialSeedData() {
     { round: 3, date: '2026-10-17', rival: 'C.D. Lealtad de Villaviciosa "C"', isHome: true, scoreMareo: 9, scoreRival: 0, status: 'finished', generalNote: 'Gran victoria combinativa.' },
     { round: 4, date: '2026-10-24', rival: 'Gijón Fútbol Femenino "A"', isHome: false, scoreMareo: 1, scoreRival: 0, status: 'finished', generalNote: 'Victoria a domicilio sin encajar goles.' },
     { round: 5, date: '2026-10-31', rival: 'C.D. Manuel Rubio "B"', isHome: true, scoreMareo: 5, scoreRival: 3, status: 'finished', generalNote: 'Gran presión arriba.' },
-    { round: 6, date: '2026-11-07', rival: 'C.D. Gijón Perchera F.S. "A"', isHome: false, status: 'scheduled' },
+    { round: 6, date: '2026-11-07', rival: 'C.D. Gijón Perchera F.S. "A"', isHome: false, scoreMareo: 3, scoreRival: 0, status: 'finished', generalNote: 'Victoria a domicilio 0-3.' },
     { round: 7, date: '2026-11-14', rival: 'Codema "C"', isHome: true, status: 'scheduled' },
     { round: 8, date: '2026-11-21', rival: 'Asunción C.F. "C"', isHome: false, status: 'scheduled' },
     { round: 9, date: '2026-11-28', rival: 'Asunción C.F. "F"', isHome: true, status: 'scheduled' },
@@ -208,44 +232,7 @@ export function getInitialSeedData() {
 
   const matchesPrec: Match[] = rawPrecMatches.map((m) => {
     const matchId = `m-prec-${m.round}`;
-    let records: Record<string, MatchPlayerRecord> = {};
-
-    // Mantener los registros históricos detallados para las jornadas disputadas (1 a 5)
-    if (m.round === 1) {
-      records = {
-        'p-1': { playerId: 'p-1', status: 'J', isStarter: true, minutes: 25, source: 'direct' },
-        'p-2': { playerId: 'p-2', status: 'J', isStarter: true, minutes: 30, source: 'direct' },
-        'p-3': { playerId: 'p-3', status: 'J', isStarter: true, minutes: 25, source: 'direct' },
-        'p-6': { playerId: 'p-6', status: 'J', isStarter: true, minutes: 20, source: 'direct' },
-        'p-7': { playerId: 'p-7', status: 'J', isStarter: true, minutes: 35, source: 'direct', note: 'Gol en jugada combinada' },
-        'p-9': { playerId: 'p-9', status: 'J', isStarter: false, minutes: 27, source: 'direct' },
-        'p-11': { playerId: 'p-11', status: 'J', isStarter: false, minutes: 25, source: 'direct' },
-      };
-    } else if (m.round === 2) {
-      records = {
-        'p-7': { playerId: 'p-7', status: 'X', isStarter: false, minutes: 0, source: 'manual', note: 'Falta justificada' },
-        'p-1': { playerId: 'p-1', status: 'J', isStarter: true, minutes: 35, source: 'direct' },
-        'p-2': { playerId: 'p-2', status: 'J', isStarter: true, minutes: 35, source: 'direct' },
-        'p-3': { playerId: 'p-3', status: 'J', isStarter: true, minutes: 30, source: 'direct' },
-        'p-4': { playerId: 'p-4', status: 'J', isStarter: true, minutes: 30, source: 'direct' },
-        'p-5': { playerId: 'p-5', status: 'J', isStarter: true, minutes: 25, source: 'direct' },
-      };
-    } else if (m.round === 3) {
-      records = {
-        'p-7': { playerId: 'p-7', status: 'J', isStarter: false, minutes: 29, source: 'direct' },
-        'p-1': { playerId: 'p-1', status: 'J', isStarter: true, minutes: 25, source: 'direct' },
-        'p-2': { playerId: 'p-2', status: 'J', isStarter: true, minutes: 28, source: 'direct' },
-        'p-3': { playerId: 'p-3', status: 'J', isStarter: true, minutes: 25, source: 'direct' },
-      };
-    } else if (m.round === 4) {
-      records = {
-        'p-7': { playerId: 'p-7', status: 'J', isStarter: false, minutes: 20, source: 'direct' },
-      };
-    } else if (m.round === 5) {
-      records = {
-        'p-7': { playerId: 'p-7', status: 'J', isStarter: true, minutes: 25, source: 'direct' },
-      };
-    }
+    const records: Record<string, MatchPlayerRecord> = {};
 
     return {
       id: matchId,
