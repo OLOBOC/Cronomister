@@ -44,10 +44,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     setResetSuccess(true);
   };
 
-  const handleQuickLogin = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('mareo2026');
-  };
+
 
   return (
     <div className="min-h-screen bg-[var(--bg)] flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden">
@@ -159,28 +156,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
           </div>
         </div>
 
-        {/* Acceso Rápido para Pruebas / Demostración */}
-        <div className="p-4 rounded-2xl bg-[var(--card)] border border-[var(--line)] space-y-2">
-          <span className="block text-[11px] font-bold text-[var(--mute)] uppercase text-center tracking-wider">
-            Accesos de prueba configurados
-          </span>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => handleQuickLogin('entrenador@mareo.es')}
-              className="p-2.5 rounded-xl border border-[var(--line)] hover:border-[var(--red)] bg-[var(--bg)] text-left transition-colors text-xs space-y-0.5"
-            >
-              <span className="font-bold block text-[var(--red)]">Entrenador (Admin)</span>
-              <span className="text-[10px] text-[var(--mute)] block truncate">entrenador@mareo.es</span>
-            </button>
-            <button
-              onClick={() => handleQuickLogin('delegado@mareo.es')}
-              className="p-2.5 rounded-xl border border-[var(--line)] hover:border-emerald-500 bg-[var(--bg)] text-left transition-colors text-xs space-y-0.5"
-            >
-              <span className="font-bold block text-emerald-600">Delegado</span>
-              <span className="text-[10px] text-[var(--mute)] block truncate">delegado@mareo.es</span>
-            </button>
-          </div>
-        </div>
+
       </div>
 
       {/* Modal de Recuperación de Contraseña */}

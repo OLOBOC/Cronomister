@@ -109,7 +109,7 @@ export function initStore() {
           },
         ])
       );
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, JSON.stringify(SEED_USERS[0].id));
+      // No iniciar sesión automáticamente por defecto en nuevos dispositivos para proteger el acceso de Admin
       localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
     } else {
       // Actualización a v4: limpiar todas las asistencias a petición del míster para empezar de cero
