@@ -80,7 +80,7 @@ function setToStorage<T>(key: string, value: T): void {
 export function initStore() {
   if (typeof window === 'undefined') return;
 
-  const STORE_VERSION = 'cronomister_v3_beta_revision';
+  const STORE_VERSION = 'cronomister_v4_clean_attendance';
   const currentVersion = localStorage.getItem('cronomister_store_version');
 
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
@@ -112,7 +112,10 @@ export function initStore() {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, JSON.stringify(SEED_USERS[0].id));
       localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
     } else {
-      // Actualización a v2: sincronizar los calendarios de Pre C y Debutantes A y plantillas
+      // Actualización a v4: limpiar todas las asistencias a petición del míster para empezar de cero
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
+
+      // Sincronizar los calendarios de Pre C y Debutantes A y plantillas
       const prevMatches = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
       const prevPlayers = getFromStorage<Player[]>(STORAGE_KEYS.PLAYERS, []);
       const prevTeams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);

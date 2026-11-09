@@ -100,9 +100,15 @@ export function TeamSettingsModal({ isOpen, onClose, team, currentUser }: TeamSe
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="bg-[var(--card)] text-[var(--ink)] w-full max-w-lg rounded-2xl p-5 shadow-2xl border border-[var(--line)] max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-xl font-bold tracking-tight">Ajustes: {team.name}</h2>
-            <p className="text-xs text-[var(--mute)]">Configuración técnica de partidos y entrenamientos</p>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white p-0.5 shadow-sm border border-[var(--line)] flex items-center justify-center shrink-0 overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Cronomister" className="w-full h-full object-contain" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black tracking-tight">Ajustes: {team.name}</h2>
+              <p className="text-xs text-[var(--mute)]">Configuración técnica de partidos y entrenamientos</p>
+            </div>
           </div>
           <button
             onClick={onClose}

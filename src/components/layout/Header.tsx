@@ -39,9 +39,15 @@ export function Header({
     <header className="sticky top-0 z-40 bg-[var(--red)] text-white shadow-md">
       <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
         <div className="flex items-center justify-between gap-3 mb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-extrabold text-white text-base shrink-0">
-              M
+          <div className="flex items-center gap-2.5 min-w-0">
+            {/* Escudo / Logo Oficial de Cronomister */}
+            <div className="w-10 h-10 rounded-xl bg-white p-0.5 shadow-sm flex items-center justify-center shrink-0 overflow-hidden border border-white/30">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo.png"
+                alt="Cronomister Logo"
+                className="w-full h-full object-contain"
+              />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">

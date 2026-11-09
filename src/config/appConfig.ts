@@ -4,7 +4,7 @@
  */
 export const APP_CONFIG = {
   NAME: 'Cronomister',
-  VERSION: '1.0.0-beta',
+  VERSION: '1.0.0-beta.2',
   SUBTITLE: 'Control de equipos y minutaje en tiempo real',
   CLUB_NAME: 'Escuela de Fútbol Mareo',
   SEASON: '2026/2027',

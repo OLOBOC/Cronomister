@@ -50,12 +50,20 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] flex flex-col justify-center items-center px-4 py-8">
-      <div className="w-full max-w-sm space-y-6">
-        {/* Cabecera Oficial Mareo */}
-        <div className="text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl bg-[var(--red)] text-white font-black text-2xl flex items-center justify-center mx-auto shadow-md">
-            M
+    <div className="min-h-screen bg-[var(--bg)] flex flex-col justify-center items-center px-4 py-8 relative overflow-hidden">
+      {/* Fondo sutil deportivo con degradado rojo Mareo */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-b from-[var(--red)]/15 via-transparent to-transparent pointer-events-none blur-3xl -z-10" />
+
+      <div className="w-full max-w-sm space-y-5">
+        {/* Logo Oficial de Cronomister */}
+        <div className="text-center space-y-3">
+          <div className="w-28 h-28 rounded-3xl bg-white p-2.5 flex items-center justify-center mx-auto shadow-xl border-2 border-[var(--red)]/30 ring-4 ring-black/5 dark:ring-white/10 animate-in zoom-in-95 duration-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.png"
+              alt="Cronomister Logo"
+              className="w-full h-full object-contain drop-shadow-sm"
+            />
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight text-[var(--ink)]">
@@ -159,14 +167,14 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => handleQuickLogin('entrenador@mareo.es')}
-              className="p-2 rounded-xl border border-[var(--line)] hover:border-[var(--red)] bg-[var(--bg)] text-left transition-colors text-xs"
+              className="p-2.5 rounded-xl border border-[var(--line)] hover:border-[var(--red)] bg-[var(--bg)] text-left transition-colors text-xs space-y-0.5"
             >
               <span className="font-bold block text-[var(--red)]">Entrenador (Admin)</span>
               <span className="text-[10px] text-[var(--mute)] block truncate">entrenador@mareo.es</span>
             </button>
             <button
               onClick={() => handleQuickLogin('delegado@mareo.es')}
-              className="p-2 rounded-xl border border-[var(--line)] hover:border-emerald-500 bg-[var(--bg)] text-left transition-colors text-xs"
+              className="p-2.5 rounded-xl border border-[var(--line)] hover:border-emerald-500 bg-[var(--bg)] text-left transition-colors text-xs space-y-0.5"
             >
               <span className="font-bold block text-emerald-600">Delegado</span>
               <span className="text-[10px] text-[var(--mute)] block truncate">delegado@mareo.es</span>

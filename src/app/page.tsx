@@ -107,9 +107,15 @@ export default function Home() {
   if (!isClient) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--mute)] text-sm">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-8 h-8 border-3 border-[var(--red)] border-t-transparent rounded-full animate-spin"></div>
-          <span>Cargando Cronomister Mareo...</span>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-white p-2 shadow-lg border border-[var(--red)]/20 animate-pulse">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="Cronomister" className="w-full h-full object-contain" />
+          </div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-[var(--ink)]">
+            <div className="w-3.5 h-3.5 border-2 border-[var(--red)] border-t-transparent rounded-full animate-spin" />
+            <span>Cargando Cronomister Mareo...</span>
+          </div>
         </div>
       </div>
     );

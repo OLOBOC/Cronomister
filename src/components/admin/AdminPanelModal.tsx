@@ -171,8 +171,9 @@ export function AdminPanelModal({
         {/* Cabecera del Panel */}
         <div className="p-4 border-b border-[var(--line)] bg-[var(--bg)] flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[var(--red)] text-white flex items-center justify-center font-bold shrink-0">
-              <Shield className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-white p-0.5 shadow-sm flex items-center justify-center shrink-0 border border-[var(--line)] overflow-hidden">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="Cronomister" className="w-full h-full object-contain" />
             </div>
             <div>
               <div className="flex items-center gap-2">

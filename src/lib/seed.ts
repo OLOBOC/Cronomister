@@ -127,7 +127,7 @@ export function getInitialSeedData() {
         id: `prec-${dateStr}`,
         teamId: 'team-prec',
         date: dateStr,
-        generalNote: dateStr === '2026-10-29' ? 'Entrenamiento de repliegue y saques de banda' : '',
+        generalNote: '',
         createdAt: d.toISOString(),
       });
 
@@ -140,47 +140,8 @@ export function getInitialSeedData() {
         createdAt: d.toISOString(),
       });
 
-      // Asistencia histórica para sesiones hasta 2026-11-05
-      if (dateStr <= '2026-11-05') {
-        playersPrec.forEach((p) => {
-          let status: 'S' | 'A' | 'N' = 'S';
-          let note = '';
-
-          if (p.id === 'p-7') {
-            if (dateStr === '2026-10-22' || dateStr === '2026-10-27' || dateStr === '2026-11-03') {
-              status = 'N';
-            } else if (dateStr === '2026-10-29') {
-              status = 'A';
-              note = 'Avisó por resfriado';
-            }
-          } else {
-            if (dateStr === '2026-10-15' && (p.id === 'p-2' || p.id === 'p-4')) {
-              status = 'A';
-              note = 'Viaje familiar';
-            }
-          }
-
-          attendance.push({
-            id: `att-${dateStr}-${p.id}`,
-            sessionId: `prec-${dateStr}`,
-            playerId: p.id,
-            status,
-            note,
-            updatedAt: d.toISOString(),
-          });
-        });
-
-        // Asistencia Debutantes A
-        playersDebuA.forEach((p) => {
-          attendance.push({
-            id: `att-${dateStr}-${p.id}`,
-            sessionId: `deba-${dateStr}`,
-            playerId: p.id,
-            status: 'S',
-            updatedAt: d.toISOString(),
-          });
-        });
-      }
+      // Las asistencias comienzan completamente limpias ([]) para que el cuerpo técnico
+      // registre la asistencia real de los entrenamientos en directo.
     }
   }
 
