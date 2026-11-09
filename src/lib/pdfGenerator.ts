@@ -111,19 +111,22 @@ export function generatePlayerPdf({
       (m.isHome ? `Mareo vs ${m.rival}` : `${m.rival} vs Mareo`);
     const formattedDate = m.date.split('-').reverse().join('/');
 
+    const convocadoLabel = !rec ? '—' : isPlayed ? 'Convocado' : 'No convocado';
+    const titularLabel = !isPlayed ? '—' : isStarter ? 'Titular' : 'Suplente';
+
     return [
       compLabel,
       formattedDate,
       matchLabel,
-      rec ? (isPlayed ? 'Sí' : 'No') : '—',
-      isPlayed ? (isStarter ? 'Sí' : 'No') : '—',
+      convocadoLabel,
+      titularLabel,
       mins + sourceTag,
     ];
   });
 
   autoTable(doc, {
     startY: 56,
-    head: [['Comp. / Jorn.', 'Fecha', 'Partido / Rival', 'Asistió', 'Titular', 'Minutos (Origen)']],
+    head: [['Comp. / Jorn.', 'Fecha', 'Partido / Rival', 'Convocatoria', 'Titular', 'Minutos (Origen)']],
     body: matchRows,
     theme: 'grid',
     styles: { fontSize: 8.5, cellPadding: 2.2, font: 'helvetica' },
@@ -158,8 +161,6 @@ export function generatePlayerPdf({
     const dayName = daysOfWeek[dateObj.getDay()] || '';
     const formattedDate = s.date.split('-').reverse().join('/');
 
-    const missed = att?.status === 'S' ? 'No' : 'Sí';
-    const excused = att?.status === 'S' ? '—' : att?.status === 'A' ? 'Sí' : 'No';
     const stateLabel =
       att?.status === 'S'
         ? 'Asistió'
@@ -167,19 +168,20 @@ export function generatePlayerPdf({
         ? 'Falta avisada'
         : 'Falta sin avisar';
 
+    const motivo = att?.status !== 'S' && att?.reason ? att.reason : '—';
+
     return [
       String(idx + 1).padStart(2, '0'),
       formattedDate,
       dayName,
-      missed,
-      excused,
       stateLabel,
+      motivo,
     ];
   });
 
   autoTable(doc, {
     startY: currentY + 3,
-    head: [['Nº', 'Fecha', 'Día', 'Faltó', 'Avisó', 'Estado']],
+    head: [['Nº', 'Fecha', 'Día', 'Estado', 'Motivo']],
     body: attendanceRows.length > 0 ? attendanceRows : [['—', '—', '—', '—', '—', 'Sin registros']],
     theme: 'grid',
     styles: { fontSize: 8.5, cellPadding: 2, font: 'helvetica' },

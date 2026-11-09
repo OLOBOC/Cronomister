@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Match, Player, Team } from '@/types';
 import { X, Check, Clock } from 'lucide-react';
 import { updateMatchRosterManual, updateMatch } from '@/lib/storage';
+import { CONVOCATION_LABELS } from '@/lib/terminology';
 
 interface ManualMinutesModalProps {
   isOpen: boolean;
@@ -154,8 +155,8 @@ export function ManualMinutesModal({
                       onChange={(e) => handleFieldChange(p.id, 'status', e.target.value)}
                       className="px-2 py-1 rounded-lg border border-[var(--line)] bg-[var(--bg)] text-xs font-semibold"
                     >
-                      <option value="J">Jugó</option>
-                      <option value="X">No vino</option>
+                      <option value="J">{CONVOCATION_LABELS.J}</option>
+                      <option value="X">{CONVOCATION_LABELS.X}</option>
                     </select>
 
                     <div className="flex items-center gap-1">

@@ -14,6 +14,7 @@ import {
 import { calculatePlayerKPIs } from '@/lib/minuteEngine';
 import { generatePlayerPdf } from '@/lib/pdfGenerator';
 import { deletePlayerData } from '@/lib/storage';
+import { hasPermission } from '@/lib/permissions';
 
 interface PlayerFichaViewProps {
   player: Player;
@@ -42,6 +43,7 @@ export function PlayerFichaView({
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const isAdmin = currentUser.role === 'admin';
+  const canDownloadPdf = hasPermission(currentUser, team.id, 'download_pdf');
   const totalMatchDuration = team.settings.halfDurationMinutes * 2;
 
   const playerAttendance = attendance.filter((a) => a.playerId === player.id);
@@ -115,14 +117,16 @@ export function PlayerFichaView({
             </div>
           </div>
 
-          <button
-            onClick={handleDownloadPdf}
-            disabled={isDownloading}
-            className="px-3.5 py-2.5 bg-[var(--red)] hover:bg-[var(--red-hover)] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all shrink-0"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Descargar</span> PDF
-          </button>
+          {canDownloadPdf && (
+            <button
+              onClick={handleDownloadPdf}
+              disabled={isDownloading}
+              className="px-3.5 py-2.5 bg-[var(--red)] hover:bg-[var(--red-hover)] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all shrink-0"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Descargar</span> PDF
+            </button>
+          )}
         </div>
       </div>
 
@@ -217,30 +221,30 @@ export function PlayerFichaView({
                 style={{
                   width: `${(kpis.attendanceCount.attended / kpis.attendanceCount.totalSessions) * 100}%`,
                 }}
-                title={`Vino: ${kpis.attendanceCount.attended}`}
+                title={`Asistió: ${kpis.attendanceCount.attended}`}
               />
               <div
                 className="bg-amber-400 h-full transition-all"
                 style={{
                   width: `${(kpis.attendanceCount.excused / kpis.attendanceCount.totalSessions) * 100}%`,
                 }}
-                title={`Avisó: ${kpis.attendanceCount.excused}`}
+                title={`Falta avisada: ${kpis.attendanceCount.excused}`}
               />
               <div
                 className="bg-rose-500 h-full transition-all"
                 style={{
                   width: `${(kpis.attendanceCount.unexcused / kpis.attendanceCount.totalSessions) * 100}%`,
                 }}
-                title={`Sin avisar: ${kpis.attendanceCount.unexcused}`}
+                title={`Falta sin avisar: ${kpis.attendanceCount.unexcused}`}
               />
             </div>
 
             <div className="flex items-center justify-around gap-2 text-xs pt-3 font-semibold">
               <span className="flex items-center gap-1 text-emerald-700 dark:text-emerald-300">
-                <CheckCircle className="w-3.5 h-3.5" /> Vino {kpis.attendanceCount.attended}
+                <CheckCircle className="w-3.5 h-3.5" /> Asistió {kpis.attendanceCount.attended}
               </span>
               <span className="flex items-center gap-1 text-amber-700 dark:text-amber-300">
-                <AlertCircle className="w-3.5 h-3.5" /> Avisó {kpis.attendanceCount.excused}
+                <AlertCircle className="w-3.5 h-3.5" /> Falta avisada {kpis.attendanceCount.excused}
               </span>
               <span className="flex items-center gap-1 text-rose-700 dark:text-rose-300">
                 <XCircle className="w-3.5 h-3.5" /> Sin avisar {kpis.attendanceCount.unexcused}

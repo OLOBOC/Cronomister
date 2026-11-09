@@ -113,6 +113,7 @@ export function MatchLiveView({
       clearInterval(heartbeat);
       if (timerRef.current) clearInterval(timerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id]);
 
   const tryAcquireLock = () => {
@@ -173,6 +174,7 @@ export function MatchLiveView({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isClockRunning, currentPeriod, speedMultiplier, hasLock]);
 
   // Manejadores de Setup

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { ManualMinutesModal } from './ManualMinutesModal';
 import { updateMatch } from '@/lib/storage';
+import { MINUTES_SOURCE_LABELS } from '@/lib/terminology';
 
 interface MatchDetailViewProps {
   match: Match;
@@ -177,7 +178,7 @@ export function MatchDetailView({
                               : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                           }`}
                         >
-                          {rec.source}
+                        {MINUTES_SOURCE_LABELS[rec.source]}
                         </span>
                       </div>
                       <span className="font-black tabular-clock text-[var(--ink)]">
