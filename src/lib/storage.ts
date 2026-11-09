@@ -70,24 +70,72 @@ function setToStorage<T>(key: string, value: T): void {
 }
 
 /**
- * Inicializa los datos semilla si el almacenamiento está vacío
+ * Inicializa los datos semilla si el almacenamiento está vacío o actualiza al calendario oficial v2
  */
 export function initStore() {
   if (typeof window === 'undefined') return;
 
+  const STORE_VERSION = 'cronomister_v2_league_calendars';
+  const currentVersion = localStorage.getItem('cronomister_store_version');
+
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
-  if (!existingTeams) {
+  if (!existingTeams || currentVersion !== STORE_VERSION) {
     const seed = getInitialSeedData();
-    localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(seed.teams));
-    localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(seed.players));
-    localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(seed.sessions));
-    localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(seed.attendance));
-    localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(seed.matches));
-    localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([]));
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(SEED_USERS));
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, JSON.stringify(SEED_USERS[0].id));
-    localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
+
+    if (!existingTeams) {
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(seed.teams));
+      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(seed.players));
+      localStorage.setItem(STORAGE_KEYS.SESSIONS, JSON.stringify(seed.sessions));
+      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify(seed.attendance));
+      localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(seed.matches));
+      localStorage.setItem(STORAGE_KEYS.EVENTS, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify([]));
+      localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(SEED_USERS));
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, JSON.stringify(SEED_USERS[0].id));
+      localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
+    } else {
+      // Actualización a v2: sincronizar los calendarios de Pre C y Debutantes A y plantillas
+      const prevMatches = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
+      const prevPlayers = getFromStorage<Player[]>(STORAGE_KEYS.PLAYERS, []);
+      const prevTeams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
+
+      // Conservar registros ya editados por el usuario
+      const mergedMatches = [...seed.matches];
+      prevMatches.forEach((pm) => {
+        const seedIndex = mergedMatches.findIndex((m) => m.id === pm.id);
+        if (seedIndex !== -1) {
+          // Si el usuario ya tenía actas o minutos jugados en este partido, conservarlos
+          if (Object.keys(pm.records || {}).length > 0) {
+            mergedMatches[seedIndex].records = pm.records;
+            mergedMatches[seedIndex].status = pm.status;
+            mergedMatches[seedIndex].scoreMareo = pm.scoreMareo;
+            mergedMatches[seedIndex].scoreRival = pm.scoreRival;
+          }
+        } else if (!pm.id.startsWith('m-prec-') && !pm.id.startsWith('m-deba-')) {
+          // Partidos manuales creados por el usuario
+          mergedMatches.push(pm);
+        }
+      });
+
+      // Asegurar que Debutantes A tenga jugadores y esté marcado configurado
+      const mergedPlayers = [...prevPlayers];
+      seed.players.forEach((sp) => {
+        if (!mergedPlayers.some((p) => p.id === sp.id)) {
+          mergedPlayers.push(sp);
+        }
+      });
+
+      const mergedTeams = seed.teams.map((st) => {
+        const existing = prevTeams.find((pt) => pt.id === st.id);
+        return existing ? { ...existing, settings: { ...existing.settings, isConfigured: true } } : st;
+      });
+
+      localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(mergedMatches));
+      localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(mergedPlayers));
+      localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(mergedTeams));
+    }
+
+    localStorage.setItem('cronomister_store_version', STORE_VERSION);
     notify();
   }
 

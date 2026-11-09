@@ -59,6 +59,7 @@ export interface AttendanceRecord {
 
 export type MatchStatus = 'scheduled' | 'in_progress' | 'finished';
 export type MinutesSource = 'direct' | 'manual' | 'estimated';
+export type MatchType = 'league' | 'tournament' | 'friendly';
 
 export interface MatchPlayerRecord {
   playerId: string;
@@ -76,6 +77,8 @@ export interface Match {
   date: string;        // YYYY-MM-DD
   rival: string;
   isHome: boolean;
+  matchType?: MatchType;       // 'league' (defecto), 'tournament', 'friendly'
+  tournamentName?: string;     // Nombre del torneo (ej. "Torneo de Navidad", "Mareo Cup")
   generalNote?: string;
   scoreMareo?: number;
   scoreRival?: number;

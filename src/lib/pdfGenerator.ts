@@ -99,11 +99,20 @@ export function generatePlayerPdf({
         : ' (directo)'
       : '';
 
-    const matchLabel = m.isHome ? `Mareo vs ${m.rival}` : `${m.rival} vs Mareo`;
+    const compLabel =
+      m.matchType === 'tournament'
+        ? 'Torneo'
+        : m.matchType === 'friendly'
+        ? 'Amistoso'
+        : `J${m.round}`;
+
+    const matchLabel =
+      (m.matchType === 'tournament' && m.tournamentName ? `[${m.tournamentName}] ` : '') +
+      (m.isHome ? `Mareo vs ${m.rival}` : `${m.rival} vs Mareo`);
     const formattedDate = m.date.split('-').reverse().join('/');
 
     return [
-      `J${m.round}`,
+      compLabel,
       formattedDate,
       matchLabel,
       rec ? (isPlayed ? 'Sí' : 'No') : '—',
@@ -114,7 +123,7 @@ export function generatePlayerPdf({
 
   autoTable(doc, {
     startY: 56,
-    head: [['Jornada', 'Fecha', 'Partido / Rival', 'Asistió', 'Titular', 'Minutos (Origen)']],
+    head: [['Comp. / Jorn.', 'Fecha', 'Partido / Rival', 'Asistió', 'Titular', 'Minutos (Origen)']],
     body: matchRows,
     theme: 'grid',
     styles: { fontSize: 8.5, cellPadding: 2.2, font: 'helvetica' },

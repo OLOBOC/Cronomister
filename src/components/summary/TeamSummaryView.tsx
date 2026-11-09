@@ -98,7 +98,15 @@ export function TeamSummaryView({
             <Calendar className="w-4 h-4 text-[var(--red)]" />
             <span>Próximo partido</span>
           </span>
-          {nextMatch && <span>Jornada {nextMatch.round}</span>}
+          {nextMatch && (
+            <span className="font-bold">
+              {nextMatch.matchType === 'tournament'
+                ? nextMatch.tournamentName || 'Torneo'
+                : nextMatch.matchType === 'friendly'
+                ? 'Amistoso'
+                : `Jornada ${nextMatch.round}`}
+            </span>
+          )}
         </div>
 
         {nextMatch ? (

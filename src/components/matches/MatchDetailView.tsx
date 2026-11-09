@@ -60,9 +60,13 @@ export function MatchDetailView({
       <div className="bg-[var(--card)] p-4 rounded-2xl border border-[var(--line)] shadow-xs space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-extrabold text-xl tracking-tight">
-                Jornada {match.round}
+                {match.matchType === 'tournament'
+                  ? match.tournamentName || 'Torneo'
+                  : match.matchType === 'friendly'
+                  ? 'Partido Amistoso'
+                  : `Jornada ${match.round}`}
               </span>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
@@ -73,6 +77,11 @@ export function MatchDetailView({
               >
                 {match.status === 'finished' ? 'Finalizado' : 'Pendiente'}
               </span>
+              {match.matchType === 'tournament' && (
+                <span className="bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                  Torneo · Partido {match.round}
+                </span>
+              )}
             </div>
             <p className="text-xs text-[var(--mute)] mt-0.5 flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5" /> {formattedDate} ·{' '}

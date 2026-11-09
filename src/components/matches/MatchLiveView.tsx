@@ -441,7 +441,14 @@ export function MatchLiveView({
                 Convocatoria y Titulares
               </h2>
               <p className="text-xs text-[var(--mute)]">
-                J{match.round} · {match.isHome ? 'Mareo vs' : ''} {match.rival}
+                {match.matchType === 'tournament'
+                  ? match.tournamentName || 'Torneo'
+                  : match.matchType === 'friendly'
+                  ? 'Amistoso'
+                  : `Jornada ${match.round}`}{' '}
+                · {match.isHome ? 'Mareo vs ' : ''}
+                {match.rival}
+                {!match.isHome ? ' vs Mareo' : ''}
               </p>
             </div>
             <span

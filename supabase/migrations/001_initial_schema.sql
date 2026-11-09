@@ -80,6 +80,8 @@ CREATE TABLE IF NOT EXISTS matches (
   general_note TEXT,
   score_mareo INTEGER DEFAULT 0,
   score_rival INTEGER DEFAULT 0,
+  match_type TEXT NOT NULL DEFAULT 'league' CHECK (match_type IN ('league', 'tournament', 'friendly')),
+  tournament_name TEXT,
   status TEXT NOT NULL DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'in_progress', 'finished')),
   locked_by_user_id UUID REFERENCES profiles(id),
   locked_at TIMESTAMPTZ,
