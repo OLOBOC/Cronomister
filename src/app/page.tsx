@@ -16,6 +16,8 @@ import {
   getNotes,
   logoutUser,
   isAuthenticated,
+  syncAttendanceFromCloud,
+  syncCurrentUserPermissions,
 } from '@/lib/storage';
 import { Team, Player, Match, TrainingSession, AttendanceRecord, AppNote, UserProfile } from '@/types';
 import { Header } from '@/components/layout/Header';
@@ -82,6 +84,11 @@ export default function Home() {
     setIsLoggedIn(authStatus);
     syncDataFromStore();
 
+    if (authStatus) {
+      syncAttendanceFromCloud().then(() => syncDataFromStore());
+      syncCurrentUserPermissions().then(() => syncDataFromStore());
+    }
+
     const unsubscribe = subscribeToStore(() => {
       syncDataFromStore();
     });
@@ -93,6 +100,8 @@ export default function Home() {
     setCurrentUserState(user);
     setIsLoggedIn(true);
     syncDataFromStore();
+    syncAttendanceFromCloud().then(() => syncDataFromStore());
+    syncCurrentUserPermissions().then(() => syncDataFromStore());
   };
 
   const handleLogout = () => {

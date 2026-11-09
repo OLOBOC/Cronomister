@@ -19,6 +19,7 @@ import {
   updateSessionNote,
   getAttendance,
   setAttendanceRecord,
+  syncAttendanceFromCloud,
 } from '@/lib/storage';
 import {
   ATTENDANCE_LABELS,
@@ -72,6 +73,11 @@ export function TrainingView({ team, players }: TrainingViewProps) {
 
   useEffect(() => {
     reloadData();
+    syncAttendanceFromCloud().then(() => reloadData());
+    const interval = setInterval(() => {
+      syncAttendanceFromCloud().then(() => reloadData());
+    }, 10000);
+    return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [team.id, selectedDate]);
 

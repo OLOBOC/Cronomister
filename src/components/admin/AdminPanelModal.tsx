@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserProfile, Team, ActivityLogEntry, PermissionKey } from '@/types';
 import {
   X,
@@ -25,6 +25,8 @@ import {
   updateUserPermissions,
   updateUserTeams,
   resetUserPassword,
+  saveCloudUserToStorage,
+  fetchAndSyncUsersFromCloud,
 } from '@/lib/storage';
 import { PERMISSION_METADATA, DEFAULT_DELEGATE_PERMISSIONS } from '@/lib/permissions';
 
@@ -62,6 +64,13 @@ export function AdminPanelModal({
   const [filterDate, setFilterDate] = useState<string>('');
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (isOpen) {
+      fetchAndSyncUsersFromCloud().then(() => reloadData());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
   if (!isOpen) return null;
   if (currentUser.role !== 'admin') {
     return (
@@ -95,12 +104,28 @@ export function AdminPanelModal({
     onRefresh();
   };
 
-  const handleInviteSubmit = (e: React.FormEvent) => {
+  const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setInviteFeedback(null);
     try {
-      const newUser = inviteUser(inviteEmail, inviteName, 'delegate', inviteTeams);
+      const res = await fetch('/api/admin/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: inviteEmail.trim().toLowerCase(),
+          name: inviteName.trim(),
+          role: 'delegate',
+          teamIds: inviteTeams,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Error al invitar delegado');
+      }
+
+      saveCloudUserToStorage(data.user);
       setInviteFeedback(
-        `Delegado invitado con éxito. Contraseña provisional asignada: ${newUser.password}`
+        `✅ Delegado creado en la nube. Contraseña asignada: ${data.user.password}`
       );
       setInviteEmail('');
       setInviteName('');
@@ -114,6 +139,19 @@ export function AdminPanelModal({
     if (confirm('¿Deseas cambiar el estado de acceso de este usuario?')) {
       toggleUserStatus(userId);
       reloadData();
+
+      const all = getUsers();
+      const targetUser = all.find((u) => u.id === userId);
+      if (targetUser) {
+        fetch('/api/admin/users', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            updates: { status: targetUser.status },
+          }),
+        }).catch((err) => console.warn('Error syncing status to cloud:', err));
+      }
     }
   };
 
@@ -121,8 +159,17 @@ export function AdminPanelModal({
     const newPass = prompt('Introduce nueva contraseña provisional (o deja vacío para autogenerar):');
     if (newPass !== null) {
       const assigned = resetUserPassword(userId, newPass || undefined);
-      alert(`Acceso actualizado. Nueva contraseña: ${assigned}`);
       reloadData();
+      alert(`Acceso actualizado. Nueva contraseña: ${assigned}`);
+
+      fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          updates: { password: assigned },
+        }),
+      }).catch((err) => console.warn('Error syncing password to cloud:', err));
     }
   };
 
@@ -134,6 +181,19 @@ export function AdminPanelModal({
   ) => {
     updateUserPermissions(userId, teamId, { [permKey]: !currentValue });
     reloadData();
+
+    const all = getUsers();
+    const targetUser = all.find((u) => u.id === userId);
+    if (targetUser) {
+      fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          updates: { permissionsByTeam: targetUser.permissionsByTeam },
+        }),
+      }).catch((err) => console.warn('Error syncing permission to cloud:', err));
+    }
   };
 
   const handleToggleTeamAssignment = (userId: string, teamId: string) => {
@@ -153,6 +213,15 @@ export function AdminPanelModal({
 
     updateUserTeams(userId, newTeams);
     reloadData();
+
+    fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId,
+        updates: { teamIds: newTeams },
+      }),
+    }).catch((err) => console.warn('Error syncing teams to cloud:', err));
   };
 
   const handleExportLogs = () => {

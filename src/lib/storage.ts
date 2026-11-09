@@ -16,6 +16,7 @@ import {
 } from '@/types';
 import { getInitialSeedData, SEED_USERS } from './seed';
 import { assertPermission, DEFAULT_DELEGATE_PERMISSIONS } from './permissions';
+import { supabase } from './supabase';
 
 const STORAGE_KEYS = {
   TEAMS: 'cronomister_teams',
@@ -270,6 +271,99 @@ export function syncUsersFromCloud(cloudUsers: UserProfile[]): void {
     }
   });
   setToStorage(STORAGE_KEYS.USERS, users);
+}
+
+export async function fetchAndSyncUsersFromCloud(): Promise<UserProfile[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await fetch('/api/admin/users');
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.success && Array.isArray(data.users)) {
+      syncUsersFromCloud(data.users);
+      return data.users;
+    }
+  } catch (err) {
+    console.warn('[CloudSync] Error fetching cloud users:', err);
+  }
+  return [];
+}
+
+export async function syncCurrentUserPermissions(): Promise<void> {
+  if (typeof window === 'undefined' || !supabase) return;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.email) {
+      const userMeta = user.user_metadata || {};
+      const users = getUsers();
+      const idx = users.findIndex((u) => u.email.toLowerCase() === user.email?.toLowerCase());
+      if (idx !== -1) {
+        users[idx] = {
+          ...users[idx],
+          role: (userMeta.role as UserRole) || users[idx].role,
+          status: (userMeta.status as import('@/types').UserStatus) || users[idx].status,
+          teamIds: userMeta.teamIds || users[idx].teamIds,
+          permissionsByTeam: userMeta.permissionsByTeam || users[idx].permissionsByTeam,
+        };
+        setToStorage(STORAGE_KEYS.USERS, users);
+      }
+    }
+  } catch (err) {
+    console.warn('[CloudSync] Error syncing current user permissions:', err);
+  }
+}
+
+export async function pushAttendanceToCloud(records: AttendanceRecord[]): Promise<void> {
+  if (typeof window === 'undefined' || records.length === 0) return;
+  try {
+    await fetch('/api/sync/attendance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ records }),
+    });
+  } catch (err) {
+    console.warn('[CloudSync] Error pushing attendance to cloud:', err);
+  }
+}
+
+export async function syncAttendanceFromCloud(): Promise<AttendanceRecord[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await fetch('/api/sync/attendance');
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (data.success && Array.isArray(data.attendance)) {
+      const localAttendance = getFromStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []);
+      const mergedMap = new Map<string, AttendanceRecord>();
+
+      // 1. Añadir locales primero
+      localAttendance.forEach((rec) => {
+        mergedMap.set(`${rec.sessionId}_${rec.playerId}`, rec);
+      });
+
+      // 2. Fusionar los de la nube si son más recientes o nuevos
+      data.attendance.forEach((cloudRec: AttendanceRecord) => {
+        const key = `${cloudRec.sessionId}_${cloudRec.playerId}`;
+        const local = mergedMap.get(key);
+        if (!local) {
+          mergedMap.set(key, cloudRec);
+        } else {
+          const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
+          const cloudTime = cloudRec.updatedAt ? new Date(cloudRec.updatedAt).getTime() : 0;
+          if (cloudTime >= localTime) {
+            mergedMap.set(key, cloudRec);
+          }
+        }
+      });
+
+      const mergedList = Array.from(mergedMap.values());
+      setToStorage(STORAGE_KEYS.ATTENDANCE, mergedList);
+      return mergedList;
+    }
+  } catch (err) {
+    console.warn('[CloudSync] Error syncing attendance from cloud:', err);
+  }
+  return [];
 }
 
 export function inviteUser(
@@ -743,7 +837,9 @@ export function setAttendanceRecord(
     });
   }
 
+  const updatedRec = idx !== -1 ? all[idx] : all[all.length - 1];
   setToStorage(STORAGE_KEYS.ATTENDANCE, all);
+  pushAttendanceToCloud([updatedRec]).catch(() => {});
 
   logActivity(
     'REGISTRO_ASISTENCIA',
