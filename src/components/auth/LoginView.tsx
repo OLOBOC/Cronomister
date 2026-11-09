@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { loginUser, saveCloudUserToStorage, setCurrentUser } from '@/lib/storage';
@@ -28,7 +28,7 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     const trimmedEmail = email.trim().toLowerCase();
 
     try {
-      // 1. Intento de autenticación en la nube mediante Supabase Auth
+      // 1. Autenticación en la nube mediante Supabase Auth (siempre prioritaria)
       if (supabase) {
         const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
           email: trimmedEmail,
@@ -53,14 +53,22 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
           return;
         }
 
-        if (authErr && authErr.message.includes('Invalid login credentials')) {
-          setError('Contraseña o correo electrónico incorrectos.');
+        // Si Supabase respondió con cualquier error, no hacer fallback local
+        if (authErr) {
+          const msg = authErr.message.toLowerCase();
+          if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
+            setError('Correo o contraseña incorrectos.');
+          } else if (msg.includes('email not confirmed')) {
+            setError('Correo no confirmado. Contacta con el entrenador.');
+          } else {
+            setError('Error de acceso. Verifica tus credenciales.');
+          }
           setIsLoading(false);
           return;
         }
       }
 
-      // 2. Fallback de autenticación local / offline
+      // 2. Fallback solo si Supabase no está configurado (modo offline)
       const result = loginUser(trimmedEmail, password);
       if (result.success && result.user) {
         onLoginSuccess(result.user);
@@ -255,3 +263,4 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     </div>
   );
 }
+
