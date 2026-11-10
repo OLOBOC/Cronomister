@@ -16,6 +16,7 @@ import {
 } from '@/types';
 import { getInitialSeedData, SEED_USERS } from './seed';
 import { assertPermission, DEFAULT_DELEGATE_PERMISSIONS } from './permissions';
+import { filterAttendanceForTeam } from './attendance';
 import { supabase } from './supabase';
 
 const STORAGE_KEYS = {
@@ -999,8 +1000,12 @@ export function getAttendance(teamId?: string): AttendanceRecord[] {
   const all = getFromStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []);
   if (!teamId) return all;
   const sessions = getSessions(teamId);
-  const sessionIds = new Set(sessions.map((s) => s.id));
-  return all.filter((a) => sessionIds.has(a.sessionId));
+  const playerIds = new Set(
+    getFromStorage<Player[]>(STORAGE_KEYS.PLAYERS, [])
+      .filter((player) => player.teamId === teamId)
+      .map((player) => player.id)
+  );
+  return filterAttendanceForTeam(all, sessions, playerIds);
 }
 
 export function setAttendanceRecord(
