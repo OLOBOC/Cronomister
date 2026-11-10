@@ -28,11 +28,14 @@ Esta guía paso a paso está pensada para que cualquier persona, sin necesidad d
    - `supabase/migrations/003_shared_app_data.sql`
    - `supabase/migrations/004_correct_prec_match_results.sql`
    - `supabase/migrations/005_load_aitor_and_perchera_tracking.sql`
-5. *¡Listo!* La migración 003 crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas. La 004 corrige los marcadores históricos de Pre C y la 005 carga el seguimiento confirmado de Aitor y Perchera.
+   - `supabase/migrations/006_add_jose_perchera_minutes.sql`
+5. *¡Listo!* La migración 003 crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas. La 004 corrige los marcadores históricos de Pre C, la 005 carga el seguimiento confirmado de Aitor y Perchera y la 006 añade los 30 minutos de José Díaz Díaz.
 
 Si ya aplicaste las migraciones 001–003, ejecuta únicamente `supabase/migrations/004_correct_prec_match_results.sql` en una nueva consulta del SQL Editor para actualizar los marcadores que ya están guardados en la base de datos.
 
 Si ya aplicaste también la migración 004, ejecuta únicamente `supabase/migrations/005_load_aitor_and_perchera_tracking.sql` para cargar los minutos y asistencias históricas en Supabase.
+
+Si ya aplicaste las migraciones 004 y 005, ejecuta únicamente `supabase/migrations/006_add_jose_perchera_minutes.sql` para añadir los minutos de José Díaz Díaz en Perchera.
 
 ---
 
