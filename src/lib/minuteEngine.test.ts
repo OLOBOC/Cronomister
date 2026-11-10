@@ -85,18 +85,24 @@ describe('Minute Engine - Event Based Calculation', () => {
   it('calcula correctamente los KPIs del jugador según las reglas oficiales', () => {
     const matches = [
       {
+        id: 'm-test-1',
+        date: '2026-11-09',
         isFinished: true,
         records: {
           'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: true, minutes: 35, source: 'direct' as const },
         },
       },
       {
+        id: 'm-test-2',
+        date: '2026-11-10',
         isFinished: true,
         records: {
           'p-1': { playerId: 'p-1', status: 'X' as const, isStarter: false, minutes: 0, source: 'manual' as const },
         },
       },
       {
+        id: 'm-test-3',
+        date: '2026-11-11',
         isFinished: true,
         records: {
           'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: false, minutes: 25, source: 'direct' as const },
@@ -105,10 +111,10 @@ describe('Minute Engine - Event Based Calculation', () => {
     ];
 
     const attendance = [
-      { status: 'S' as const },
-      { status: 'S' as const },
-      { status: 'A' as const },
-      { status: 'N' as const },
+      { playerId: 'p-1', sessionId: '2026-11-09', status: 'S' as const },
+      { playerId: 'p-1', sessionId: '2026-11-10', status: 'S' as const },
+      { playerId: 'p-1', sessionId: '2026-11-11', status: 'A' as const },
+      { playerId: 'p-1', sessionId: '2026-11-12', status: 'N' as const },
     ];
 
     // Duración partido = 50 min
@@ -130,5 +136,39 @@ describe('Minute Engine - Event Based Calculation', () => {
     expect(kpis.attendanceCount.unexcused).toBe(1);
     expect(kpis.attendanceCount.totalSessions).toBe(4);
     expect(kpis.attendancePercent).toBe(0.5);
+  });
+
+  it('excludes matches before the stats start date but includes Perchera for later minute entry', () => {
+    const records = {
+      'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: true, minutes: 30, source: 'manual' as const },
+    };
+    const matches = [
+      { id: 'm-prec-1', date: '2026-10-03', isFinished: true, records },
+      { id: 'm-prec-6', date: '2026-11-07', isFinished: true, records },
+      { id: 'm-next', date: '2026-11-14', isFinished: false, records },
+    ];
+
+    const kpis = calculatePlayerKPIs('p-1', matches, [], 50);
+
+    expect(kpis.matchesTotal).toBe(2);
+    expect(kpis.matchesAttended).toBe(2);
+    expect(kpis.totalMinutes).toBe(60);
+    expect(kpis.averageMinutesPerMatch).toBe(30);
+  });
+
+  it('counts old training attendance only for Aitor as an individual historical exception', () => {
+    const attendance = [
+      { playerId: 'p-1', sessionId: '2026-10-01', status: 'S' as const },
+      { playerId: 'p-8', sessionId: 'prec-2026-10-01', status: 'S' as const },
+      { playerId: 'p-8', sessionId: '2026-11-09', status: 'A' as const },
+    ];
+
+    const regularPlayer = calculatePlayerKPIs('p-1', [], attendance, 50);
+    const aitor = calculatePlayerKPIs('p-8', [], attendance, 50);
+
+    expect(regularPlayer.attendanceCount.totalSessions).toBe(0);
+    expect(aitor.attendanceCount.attended).toBe(1);
+    expect(aitor.attendanceCount.excused).toBe(1);
+    expect(aitor.attendanceCount.totalSessions).toBe(2);
   });
 });

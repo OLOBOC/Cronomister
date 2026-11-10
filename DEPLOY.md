@@ -26,7 +26,10 @@ Esta guía paso a paso está pensada para que cualquier persona, sin necesidad d
 4. Repite el proceso, en este orden, para:
    - `supabase/migrations/002_auth_permissions_audit.sql`
    - `supabase/migrations/003_shared_app_data.sql`
-5. *¡Listo!* La última migración crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas.
+   - `supabase/migrations/004_correct_prec_match_results.sql`
+5. *¡Listo!* La migración 003 crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas. La migración 004 corrige los marcadores históricos de Pre C.
+
+Si ya aplicaste las migraciones 001–003, ejecuta únicamente `supabase/migrations/004_correct_prec_match_results.sql` en una nueva consulta del SQL Editor para actualizar los marcadores que ya están guardados en la base de datos.
 
 ---
 

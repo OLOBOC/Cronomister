@@ -1,4 +1,5 @@
 import { MatchEvent, MatchPlayerRecord } from '@/types';
+import { isAttendanceIncludedInStats, isMatchIncludedInMinuteStats } from './statsPolicy';
 
 export interface PlayerInterval {
   playerId: string;
@@ -148,12 +149,12 @@ export function calculateMinutesFromEvents(
  */
 export function calculatePlayerKPIs(
   playerId: string,
-  matches: Array<{ records: Record<string, MatchPlayerRecord>; isFinished: boolean }>,
-  attendance: Array<{ status: 'S' | 'A' | 'N' }>,
+  matches: Array<{ id?: string; date?: string; records: Record<string, MatchPlayerRecord>; isFinished: boolean }>,
+  attendance: Array<{ playerId: string; sessionId?: string; status: 'S' | 'A' | 'N' }>,
   matchDurationMinutes: number
 ) {
   // Partidos en los que fue convocado / con registro
-  const relevantMatches = matches.filter(
+  const relevantMatches = matches.filter((match) => isMatchIncludedInMinuteStats(match)).filter(
     (m) => m.records[playerId] && (m.records[playerId].status === 'J' || m.records[playerId].status === 'X')
   );
 
@@ -173,9 +174,12 @@ export function calculatePlayerKPIs(
       : 0;
 
   // Asistencia a entrenos (solo sobre sesiones registradas)
-  const attended = attendance.filter((a) => a.status === 'S').length;
-  const excused = attendance.filter((a) => a.status === 'A').length;
-  const unexcused = attendance.filter((a) => a.status === 'N').length;
+  const statisticalAttendance = attendance.filter((record) => (
+    record.playerId === playerId && isAttendanceIncludedInStats(record)
+  ));
+  const attended = statisticalAttendance.filter((a) => a.status === 'S').length;
+  const excused = statisticalAttendance.filter((a) => a.status === 'A').length;
+  const unexcused = statisticalAttendance.filter((a) => a.status === 'N').length;
   const totalSessions = attended + excused + unexcused;
 
   const attendancePercent = totalSessions > 0 ? attended / totalSessions : 0;

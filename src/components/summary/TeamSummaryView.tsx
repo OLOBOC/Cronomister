@@ -49,7 +49,7 @@ export function TeamSummaryView({
     const playerAtt = attendance.filter((a) => a.playerId === p.id);
     const kpis = calculatePlayerKPIs(
       p.id,
-      matches.map((m) => ({ records: m.records, isFinished: m.status === 'finished' })),
+      matches.map((m) => ({ id: m.id, date: m.date, records: m.records, isFinished: m.status === 'finished' })),
       playerAtt,
       totalDuration
     );

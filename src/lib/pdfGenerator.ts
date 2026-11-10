@@ -34,7 +34,7 @@ export function generatePlayerPdf({
   const playerAttendance = attendance.filter((a) => a.playerId === player.id);
   const kpis = calculatePlayerKPIs(
     player.id,
-    matches.map((m) => ({ records: m.records, isFinished: m.status === 'finished' })),
+    matches.map((m) => ({ id: m.id, date: m.date, records: m.records, isFinished: m.status === 'finished' })),
     playerAttendance,
     totalMatchDuration
   );

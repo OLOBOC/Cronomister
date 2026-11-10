@@ -196,11 +196,11 @@ export function getInitialSeedData() {
     generalNote?: string;
   }> = [
     // Primera Vuelta
-    { round: 1, date: '2026-10-03', rival: 'C.D. Montevil "A"', isHome: true, scoreMareo: 2, scoreRival: 2, status: 'finished', generalNote: 'Buen inicio de liga.' },
-    { round: 2, date: '2026-10-10', rival: 'C.D. Virgen Inmaculada "A"', isHome: false, scoreMareo: 5, scoreRival: 5, status: 'finished', generalNote: 'Partido de ida muy disputado.' },
-    { round: 3, date: '2026-10-17', rival: 'C.D. Lealtad de Villaviciosa "C"', isHome: true, scoreMareo: 9, scoreRival: 0, status: 'finished', generalNote: 'Gran victoria combinativa.' },
-    { round: 4, date: '2026-10-24', rival: 'Gijón Fútbol Femenino "A"', isHome: false, scoreMareo: 1, scoreRival: 0, status: 'finished', generalNote: 'Victoria a domicilio sin encajar goles.' },
-    { round: 5, date: '2026-10-31', rival: 'C.D. Manuel Rubio "B"', isHome: true, scoreMareo: 5, scoreRival: 3, status: 'finished', generalNote: 'Gran presión arriba.' },
+    { round: 1, date: '2026-10-03', rival: 'C.D. Montevil "A"', isHome: true, scoreMareo: 13, scoreRival: 2, status: 'finished', generalNote: 'Victoria 13-2.' },
+    { round: 2, date: '2026-10-10', rival: 'C.D. Virgen Inmaculada "A"', isHome: false, scoreMareo: 0, scoreRival: 12, status: 'finished', generalNote: 'Derrota 12-0.' },
+    { round: 3, date: '2026-10-17', rival: 'C.D. Lealtad de Villaviciosa "C"', isHome: true, scoreMareo: 3, scoreRival: 9, status: 'finished', generalNote: 'Derrota 3-9.' },
+    { round: 4, date: '2026-10-24', rival: 'Gijón Fútbol Femenino "A"', isHome: false, scoreMareo: 10, scoreRival: 0, status: 'finished', generalNote: 'Victoria 0-10 a domicilio.' },
+    { round: 5, date: '2026-10-31', rival: 'C.D. Manuel Rubio "B"', isHome: true, scoreMareo: 6, scoreRival: 1, status: 'finished', generalNote: 'Victoria 6-1.' },
     { round: 6, date: '2026-11-07', rival: 'C.D. Gijón Perchera F.S. "A"', isHome: false, scoreMareo: 3, scoreRival: 0, status: 'finished', generalNote: 'Victoria a domicilio 0-3.' },
     { round: 7, date: '2026-11-14', rival: 'Codema "C"', isHome: true, status: 'scheduled' },
     { round: 8, date: '2026-11-21', rival: 'Asunción C.F. "C"', isHome: false, status: 'scheduled' },
