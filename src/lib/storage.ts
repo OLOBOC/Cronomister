@@ -510,12 +510,13 @@ export async function syncCurrentUserPermissions(): Promise<void> {
   }
 }
 
-export async function syncSharedDataFromCloud(): Promise<void> {
+export async function syncSharedDataFromCloud(teamId?: string): Promise<void> {
   if (typeof window === 'undefined' || !supabase) return;
   if (cloudSyncTimer || cloudSyncInProgress || cloudPullInProgress || pendingCloudKeys.size > 0) return;
   cloudPullInProgress = true;
   try {
-    const response = await fetch('/api/shared-data', { headers: await getCloudAuthHeaders() });
+    const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
+    const response = await fetch(`/api/shared-data${query}`, { headers: await getCloudAuthHeaders() });
     const data = await response.json();
     if (!response.ok || !data.success || !Array.isArray(data.states)) {
       throw new Error(data.error || 'No se pudieron cargar los datos compartidos');
@@ -527,6 +528,9 @@ export async function syncSharedDataFromCloud(): Promise<void> {
       : Array.isArray(data.teamIds)
         ? data.teamIds.filter((teamId: unknown): teamId is string => typeof teamId === 'string')
         : [];
+    const teamIdsToInitialize: string[] = Array.isArray(data.requestedTeamIds)
+      ? data.requestedTeamIds
+      : allowedTeamIds;
     const states = new Map<string, TeamCloudState>();
     data.states.forEach((entry: { teamId: string; state: TeamCloudState }) => {
       if (entry && typeof entry.teamId === 'string' && entry.state && typeof entry.state === 'object') {
@@ -543,7 +547,7 @@ export async function syncSharedDataFromCloud(): Promise<void> {
     notify();
 
     if (getCurrentUser().role === 'admin') {
-      for (const teamId of allowedTeamIds) {
+      for (const teamId of teamIdsToInitialize) {
         if (!states.has(teamId) && localTeams.some((team) => team.id === teamId)) {
           await saveTeamCloudState(teamId);
         }
@@ -560,8 +564,8 @@ export async function syncSharedDataFromCloud(): Promise<void> {
   }
 }
 
-export async function syncAttendanceFromCloud(): Promise<AttendanceRecord[]> {
-  await syncSharedDataFromCloud();
+export async function syncAttendanceFromCloud(teamId = getCurrentTeamId()): Promise<AttendanceRecord[]> {
+  await syncSharedDataFromCloud(teamId);
   return getFromStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []);
 }
 

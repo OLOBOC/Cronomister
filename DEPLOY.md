@@ -57,7 +57,7 @@ Por seguridad y privacidad de los menores:
 
 ### Inicializar los datos compartidos
 - Después de aplicar la migración 003 y desplegar las variables, inicia sesión primero con la cuenta de administrador desde el navegador que contiene los datos más actualizados.
-- En ese primer acceso, los datos locales de cada equipo que aún no exista en la base de datos se copiarán a Supabase. A partir de ahí, las ediciones del admin y las asistencias se guardan en la nube y se reflejan en los demás dispositivos en un máximo aproximado de 20 segundos.
+- En ese primer acceso, los datos locales de cada equipo que aún no exista en la base de datos se copiarán a Supabase. A partir de ahí, las ediciones del admin y las asistencias se guardan en la nube y se reflejan en los demás dispositivos en un máximo aproximado de 10 segundos mientras la app está abierta.
 - Los delegados pueden entrar después desde sus móviles. No borres los datos locales del navegador del admin hasta confirmar que los equipos ya están cargados en Supabase.
 
 ### Acceso del Entrenador Principal (Admin)

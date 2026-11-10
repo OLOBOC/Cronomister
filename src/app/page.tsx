@@ -17,6 +17,7 @@ import {
   logoutUser,
   isAuthenticated,
   syncAttendanceFromCloud,
+  syncSharedDataFromCloud,
   syncCurrentUserPermissions,
   getCloudSyncError,
   retryCloudSync,
@@ -89,7 +90,7 @@ export default function Home() {
     syncDataFromStore();
 
     if (authStatus) {
-      syncAttendanceFromCloud()
+      syncSharedDataFromCloud()
         .then(() => syncDataFromStore())
         .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
       syncCurrentUserPermissions()
@@ -101,21 +102,27 @@ export default function Home() {
       syncDataFromStore();
     });
 
-    const refreshInterval = authStatus
+    const dataRefreshInterval = authStatus
       ? window.setInterval(() => {
           if (document.visibilityState !== 'visible') return;
           syncAttendanceFromCloud()
             .then(() => syncDataFromStore())
             .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+        }, 10000)
+      : null;
+    const permissionRefreshInterval = authStatus
+      ? window.setInterval(() => {
+          if (document.visibilityState !== 'visible') return;
           syncCurrentUserPermissions()
             .then(() => syncDataFromStore())
             .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
-        }, 20000)
+        }, 60000)
       : null;
 
     return () => {
       unsubscribe();
-      if (refreshInterval !== null) window.clearInterval(refreshInterval);
+      if (dataRefreshInterval !== null) window.clearInterval(dataRefreshInterval);
+      if (permissionRefreshInterval !== null) window.clearInterval(permissionRefreshInterval);
     };
   }, []);
 
@@ -123,7 +130,7 @@ export default function Home() {
     setCurrentUserState(user);
     setIsLoggedIn(true);
     syncDataFromStore();
-    syncAttendanceFromCloud()
+    syncSharedDataFromCloud()
       .then(() => syncDataFromStore())
       .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
     syncCurrentUserPermissions()
@@ -186,6 +193,9 @@ export default function Home() {
     setSelectedMatch(null);
     setActiveLiveMatch(null);
     syncDataFromStore();
+    syncAttendanceFromCloud(teamId)
+      .then(() => syncDataFromStore())
+      .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
   };
 
   return (

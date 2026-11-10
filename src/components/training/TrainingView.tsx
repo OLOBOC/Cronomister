@@ -20,6 +20,7 @@ import {
   getAttendance,
   setAttendanceRecord,
   syncAttendanceFromCloud,
+  subscribeToStore,
 } from '@/lib/storage';
 import {
   ATTENDANCE_LABELS,
@@ -73,17 +74,13 @@ export function TrainingView({ team, players }: TrainingViewProps) {
 
   useEffect(() => {
     reloadData();
-    syncAttendanceFromCloud().then(() => reloadData()).catch((error: unknown) => {
+    const unsubscribe = subscribeToStore(reloadData);
+    syncAttendanceFromCloud(team.id).then(() => reloadData()).catch((error: unknown) => {
       console.error('[CloudSync] Error actualizando entrenamientos:', error);
     });
-    const interval = setInterval(() => {
-      syncAttendanceFromCloud().then(() => reloadData()).catch((error: unknown) => {
-        console.error('[CloudSync] Error actualizando entrenamientos:', error);
-      });
-    }, 10000);
-    return () => clearInterval(interval);
+    return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team.id, selectedDate]);
+  }, [team.id]);
 
   const handleSelectDate = (date: string) => {
     setSelectedDate(date);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabaseServer';
 import { getAuthenticatedAppUser, AuthenticatedAppUser } from '@/lib/serverAuth';
 import { PermissionKey } from '@/types';
+import { mergeAppendOnlyRecords } from '@/lib/appendOnly';
 
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -14,26 +15,6 @@ function stableStringify(value: unknown): string {
 
 function hasPermission(user: AuthenticatedAppUser, teamId: string, permission: PermissionKey): boolean {
   return user.role === 'admin' || user.permissionsByTeam[teamId]?.[permission] === true;
-}
-
-function isAppendOnly(previous: unknown, incoming: unknown, ownerKey: string, ownerValue: string): boolean {
-  if (!Array.isArray(previous) || !Array.isArray(incoming)) return false;
-  const incomingById = new Map(
-    incoming
-      .filter((entry) => entry && typeof entry === 'object' && 'id' in entry)
-      .map((entry) => [(entry as { id: string }).id, entry])
-  );
-  for (const entry of previous) {
-    if (!entry || typeof entry !== 'object' || !('id' in entry)) return false;
-    const next = incomingById.get((entry as { id: string }).id);
-    if (!next || stableStringify(next) !== stableStringify(entry)) return false;
-  }
-  return incoming.every((entry) => {
-    if (!entry || typeof entry !== 'object' || !('id' in entry)) return false;
-    const id = (entry as { id: string }).id;
-    if (previous.some((oldEntry) => (oldEntry as { id?: string }).id === id)) return true;
-    return ownerKey in entry && (entry as Record<string, unknown>)[ownerKey] === ownerValue;
-  });
 }
 
 function mergeAttendance(existing: unknown, incoming: unknown): unknown {
@@ -56,8 +37,19 @@ export async function GET(req: Request) {
     const auth = await getAuthenticatedAppUser(req);
     if (!auth.user) return auth.error;
 
+    const requestedTeamId = new URL(req.url).searchParams.get('teamId');
+    if (
+      requestedTeamId &&
+      auth.user.role !== 'admin' &&
+      !auth.user.teamIds.includes(requestedTeamId)
+    ) {
+      return NextResponse.json({ success: false, error: 'No tienes acceso a este equipo' }, { status: 403 });
+    }
+
     let query = supabaseAdmin.from('team_app_state').select('team_id, state, updated_at');
-    if (auth.user.role !== 'admin') {
+    if (requestedTeamId) {
+      query = query.eq('team_id', requestedTeamId);
+    } else if (auth.user.role !== 'admin') {
       if (auth.user.teamIds.length === 0) {
         return NextResponse.json({ success: true, teamIds: [], states: [] });
       }
@@ -73,6 +65,7 @@ export async function GET(req: Request) {
     return NextResponse.json({
       success: true,
       teamIds: auth.user.role === 'admin' ? null : auth.user.teamIds,
+      requestedTeamIds: requestedTeamId ? [requestedTeamId] : null,
       states: (data || []).map((row) => ({
         teamId: row.team_id,
         state: row.state,
@@ -182,22 +175,39 @@ export async function PUT(req: Request) {
           return NextResponse.json({ success: false, error: 'No tienes permiso para editar partidos finalizados' }, { status: 403 });
         }
       }
-      if (
-        'notes' in state &&
-        stableStringify(state.notes) !== stableStringify(existingState.notes) &&
-        !hasPermission(auth.user, teamId, 'add_notes')
-      ) {
+      if ('notes' in state && stableStringify(state.notes) !== stableStringify(existingState.notes) &&
+        !hasPermission(auth.user, teamId, 'add_notes')) {
         return NextResponse.json({ success: false, error: 'No tienes permiso para añadir notas' }, { status: 403 });
-      }
-      if ('notes' in state && !isAppendOnly(existingState.notes, state.notes, 'authorName', auth.user.name)) {
-        return NextResponse.json({ success: false, error: 'No se puede modificar ni eliminar una nota guardada' }, { status: 403 });
-      }
-      if ('activityLogs' in state && !isAppendOnly(existingState.activityLogs, state.activityLogs, 'userId', auth.user.id)) {
-        return NextResponse.json({ success: false, error: 'No se puede modificar ni eliminar el registro de actividad' }, { status: 403 });
       }
     }
 
     const mergedState = { ...existingState, ...state };
+    if ('notes' in state) {
+      const mergedNotes = mergeAppendOnlyRecords(
+        existingState?.notes,
+        state.notes,
+        'authorName',
+        auth.user.name,
+        auth.user.role === 'admin'
+      );
+      if (!mergedNotes) {
+        return NextResponse.json({ success: false, error: 'No se puede modificar una nota guardada ni añadir una nota de otro usuario' }, { status: 403 });
+      }
+      mergedState.notes = mergedNotes;
+    }
+    if ('activityLogs' in state) {
+      const mergedLogs = mergeAppendOnlyRecords(
+        existingState?.activityLogs,
+        state.activityLogs,
+        'userId',
+        auth.user.id,
+        auth.user.role === 'admin'
+      );
+      if (!mergedLogs) {
+        return NextResponse.json({ success: false, error: 'No se puede modificar ni eliminar el registro de actividad' }, { status: 403 });
+      }
+      mergedState.activityLogs = mergedLogs;
+    }
     if (auth.user.role !== 'admin' && 'attendance' in state) {
       mergedState.attendance = mergeAttendance(existingState?.attendance, state.attendance);
     }
