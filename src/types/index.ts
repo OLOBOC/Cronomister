@@ -96,6 +96,7 @@ export interface AttendanceRecord {
   sessionId: string;
   playerId: string;
   status: AttendanceStatus;
+  deletedAt?: string;
   reason?: AttendanceReason;  // Motivo de la falta (solo si status !== 'S')
   note?: string;
   updatedAt: string;

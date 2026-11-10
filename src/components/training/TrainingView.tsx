@@ -29,6 +29,7 @@ import {
   ATTENDANCE_COLORS,
   ABSENCE_REASON_OPTIONS,
 } from '@/lib/terminology';
+import { getNextAttendanceStatus } from '@/lib/attendance';
 
 interface TrainingViewProps {
   team: Team;
@@ -112,7 +113,8 @@ export function TrainingView({ team, players }: TrainingViewProps) {
   const handleSetAttendance = (
     playerId: string,
     status: 'S' | 'A' | 'N',
-    reason?: AttendanceReason
+    reason?: AttendanceReason,
+    toggleSelected = true
   ) => {
     if (selectedDate > todayStr) {
       alert('No se pueden registrar asistencias futuras.');
@@ -121,10 +123,11 @@ export function TrainingView({ team, players }: TrainingViewProps) {
     const existing = attendanceList.find(
       (a) => a.sessionId === selectedDate && a.playerId === playerId
     );
+    const nextStatus = getNextAttendanceStatus(existing?.status, status, toggleSelected);
     setAttendanceRecord(
       selectedDate,
       playerId,
-      status,
+      nextStatus,
       existing?.note,
       reason !== undefined ? reason : existing?.reason ?? null
     );
@@ -302,7 +305,7 @@ export function TrainingView({ team, players }: TrainingViewProps) {
                   </button>
 
                   <button
-                    onClick={() => handleSetAttendance(player.id, isAbsent ? 'S' : 'N')}
+                    onClick={() => handleSetAttendance(player.id, isAbsent ? status : 'N')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                       isAbsent
                         ? isExcused
@@ -369,7 +372,8 @@ export function TrainingView({ team, players }: TrainingViewProps) {
                             handleSetAttendance(
                               player.id,
                               status as 'A' | 'N',
-                              rec?.reason === reason ? null : reason
+                              rec?.reason === reason ? null : reason,
+                              false
                             )
                           }
                           className={`px-2 py-0.5 rounded-lg border text-[11px] font-semibold transition-all ${

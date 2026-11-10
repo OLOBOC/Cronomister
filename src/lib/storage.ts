@@ -1011,7 +1011,7 @@ export function getAttendance(teamId?: string): AttendanceRecord[] {
 export function setAttendanceRecord(
   sessionId: string,
   playerId: string,
-  status: 'S' | 'A' | 'N',
+  status: 'S' | 'A' | 'N' | null,
   note?: string,
   reason?: import('@/types').AttendanceReason
 ) {
@@ -1028,8 +1028,16 @@ export function setAttendanceRecord(
   const idx = all.findIndex((a) => a.sessionId === sessionId && a.playerId === playerId);
   const prevStatus = idx !== -1 ? all[idx].status : undefined;
 
-  if (idx !== -1) {
+  if (status === null && idx === -1) return;
+
+  if (idx !== -1 && status === null) {
+    all[idx].deletedAt = new Date().toISOString();
+    all[idx].note = '';
+    all[idx].reason = null;
+    all[idx].updatedAt = all[idx].deletedAt;
+  } else if (idx !== -1 && status !== null) {
     all[idx].status = status;
+    delete all[idx].deletedAt;
     if (note !== undefined) all[idx].note = note;
     // Limpiar motivo si asistió; actualizar si se proporcionó uno
     if (status === 'S') {
@@ -1038,7 +1046,7 @@ export function setAttendanceRecord(
       all[idx].reason = reason;
     }
     all[idx].updatedAt = new Date().toISOString();
-  } else {
+  } else if (status !== null) {
     all.push({
       id: `att-${sessionId}-${playerId}`,
       sessionId,
@@ -1053,10 +1061,12 @@ export function setAttendanceRecord(
   setToStorage(STORAGE_KEYS.ATTENDANCE, all);
 
   logActivity(
-    'REGISTRO_ASISTENCIA',
-    `Asistencia actualizada en sesión ${sessionId} (${status}${reason ? ' - ' + reason : ''})`,
+    status === null ? 'BORRADO_ASISTENCIA' : 'REGISTRO_ASISTENCIA',
+    status === null
+      ? `Asistencia desmarcada en sesión ${sessionId}`
+      : `Asistencia actualizada en sesión ${sessionId} (${status}${reason ? ' - ' + reason : ''})`,
     prevStatus,
-    status,
+    status ?? '',
     currentTeamId
   );
 }

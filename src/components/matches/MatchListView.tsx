@@ -140,8 +140,17 @@ export function MatchListView({
           </div>
         ) : (
           filteredMatches.map((m) => {
-            const recordsCount = Object.keys(m.records || {}).length;
-            const hasData = recordsCount > 0;
+            const recordsCount = Object.values(m.records || {})
+              .filter((record) => record.status === 'J' && record.minutes > 0)
+              .length;
+            const hasMatchResult = m.status === 'finished' ||
+              (m.scoreMareo !== undefined && m.scoreRival !== undefined);
+            const statusLabel = recordsCount > 0
+              ? `${recordsCount} con minutos`
+              : hasMatchResult
+                ? 'Jugado · sin minutos'
+                : 'Pendiente';
+            const hasData = recordsCount > 0 || hasMatchResult;
             const formattedDate = m.date.split('-').reverse().join('/');
             const currentType = m.matchType || 'league';
 
@@ -209,7 +218,7 @@ export function MatchListView({
                         : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                     }`}
                   >
-                    {hasData ? `${recordsCount} con minutos` : 'Pendiente'}
+                    {statusLabel}
                   </span>
                   <ChevronRight className="w-4 h-4 text-[var(--mute)]" />
                 </div>

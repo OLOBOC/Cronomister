@@ -171,4 +171,50 @@ describe('Minute Engine - Event Based Calculation', () => {
     expect(aitor.attendanceCount.excused).toBe(1);
     expect(aitor.attendanceCount.totalSessions).toBe(2);
   });
+
+  it('includes Aitor historical match tracking while excluding the same matches for other players', () => {
+    const matches = [
+      {
+        id: 'm-prec-1',
+        date: '2026-10-03',
+        isFinished: true,
+        records: {
+          'p-8': { playerId: 'p-8', status: 'J' as const, isStarter: true, minutes: 35, source: 'manual' as const },
+          'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: true, minutes: 35, source: 'manual' as const },
+        },
+      },
+      {
+        id: 'm-prec-2',
+        date: '2026-10-10',
+        isFinished: true,
+        records: {
+          'p-8': { playerId: 'p-8', status: 'X' as const, isStarter: false, minutes: 0, source: 'manual' as const },
+          'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: true, minutes: 30, source: 'manual' as const },
+        },
+      },
+      ...[3, 4, 5].map((round, index) => ({
+        id: `m-prec-${round}`,
+        date: `2026-10-${17 + index * 7}`,
+        isFinished: true,
+        records: {
+          'p-8': {
+            playerId: 'p-8',
+            status: 'J' as const,
+            isStarter: false,
+            minutes: [29, 20, 25][index],
+            source: 'manual' as const,
+          },
+        },
+      })),
+    ];
+
+    const aitor = calculatePlayerKPIs('p-8', matches, [], 50);
+    const otherPlayer = calculatePlayerKPIs('p-1', matches, [], 50);
+
+    expect(aitor.matchesTotal).toBe(5);
+    expect(aitor.matchesAttended).toBe(4);
+    expect(aitor.totalMinutes).toBe(109);
+    expect(aitor.averageMinutesPerMatch).toBe(27.25);
+    expect(otherPlayer.matchesTotal).toBe(0);
+  });
 });

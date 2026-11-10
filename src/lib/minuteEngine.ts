@@ -154,7 +154,7 @@ export function calculatePlayerKPIs(
   matchDurationMinutes: number
 ) {
   // Partidos en los que fue convocado / con registro
-  const relevantMatches = matches.filter((match) => isMatchIncludedInMinuteStats(match)).filter(
+  const relevantMatches = matches.filter((match) => isMatchIncludedInMinuteStats(match, playerId)).filter(
     (m) => m.records[playerId] && (m.records[playerId].status === 'J' || m.records[playerId].status === 'X')
   );
 

@@ -41,8 +41,8 @@ export function TeamSummaryView({
   const canViewStats = hasPermission(currentUser, team.id, 'view_stats');
   const totalDuration = team.settings.halfDurationMinutes * 2;
 
-  // Próximo partido (el primero programado sin minutos o el siguiente en fecha)
-  const nextMatch = matches.find((m) => Object.keys(m.records || {}).length === 0) || matches[0];
+  // El siguiente partido se identifica por su estado, no por tener ya acta de minutos.
+  const nextMatch = matches.find((match) => match.status === 'scheduled') || matches[0];
 
   // Cálculo de estadísticas de minutos de todo el equipo
   const playerStats = players.map((p) => {

@@ -208,7 +208,7 @@ export async function PUT(req: Request) {
       }
       mergedState.activityLogs = mergedLogs;
     }
-    if (auth.user.role !== 'admin' && 'attendance' in state) {
+    if ('attendance' in state) {
       mergedState.attendance = mergeAttendance(existingState?.attendance, state.attendance);
     }
 

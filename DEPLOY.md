@@ -27,9 +27,12 @@ Esta guía paso a paso está pensada para que cualquier persona, sin necesidad d
    - `supabase/migrations/002_auth_permissions_audit.sql`
    - `supabase/migrations/003_shared_app_data.sql`
    - `supabase/migrations/004_correct_prec_match_results.sql`
-5. *¡Listo!* La migración 003 crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas. La migración 004 corrige los marcadores históricos de Pre C.
+   - `supabase/migrations/005_load_aitor_and_perchera_tracking.sql`
+5. *¡Listo!* La migración 003 crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas. La 004 corrige los marcadores históricos de Pre C y la 005 carga el seguimiento confirmado de Aitor y Perchera.
 
 Si ya aplicaste las migraciones 001–003, ejecuta únicamente `supabase/migrations/004_correct_prec_match_results.sql` en una nueva consulta del SQL Editor para actualizar los marcadores que ya están guardados en la base de datos.
+
+Si ya aplicaste también la migración 004, ejecuta únicamente `supabase/migrations/005_load_aitor_and_perchera_tracking.sql` para cargar los minutos y asistencias históricas en Supabase.
 
 ---
 
