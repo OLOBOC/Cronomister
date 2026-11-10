@@ -49,8 +49,9 @@ Herramienta web responsive (mobile-first y escritorio) instalable como PWA para 
 - **Generación de Informes**: jsPDF + jspdf-autotable (ejecución en cliente, compatible offline).
 - **Testing**: Vitest (tests automatizados de minutaje por intervalos, tiempos muertos y recuperación de pantalla).
 - **Backend / Persistencia**:
-  - Modo híbrido local: almacén reactivo con persistencia en `localStorage` y sincronización entre pestañas.
-  - Modo producción Supabase: PostgreSQL con esquemas en `supabase/migrations/` y políticas de Row Level Security (RLS) en región Fráncfort (UE).
+  - Supabase PostgreSQL es la fuente compartida para equipos, jugadores, entrenamientos, asistencias, partidos, eventos y notas.
+  - `localStorage` se utiliza como caché local; los cambios autenticados se sincronizan con Supabase y se consultan periódicamente para reflejarlos en otros dispositivos.
+  - El estado se guarda en JSONB por equipo para conservar los identificadores actuales; el acceso se valida en el servidor antes de leer o escribir.
 
 ---
 
@@ -134,5 +135,5 @@ Dorsal,Nombre,Apellidos,Puesto
 2. En los ajustes de Vercel (*Project Settings* $\rightarrow$ *Environment Variables*), añade:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-3. En Supabase, ejecuta el script SQL ubicado en `supabase/migrations/001_initial_schema.sql` para crear las tablas y políticas RLS en tu base de datos de región Fráncfort (UE).
+3. En Supabase, ejecuta en orden los scripts SQL `001_initial_schema.sql`, `002_auth_permissions_audit.sql` y `003_shared_app_data.sql` para crear las tablas y políticas RLS en tu base de datos de región Fráncfort (UE).
 4. El despliegue generará la PWA instalable con HTTPS nativo.

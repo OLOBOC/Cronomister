@@ -35,6 +35,44 @@ const STORAGE_KEYS = {
 // Event emitter para reactividad en componentes React sin dependencias externas pesadas
 type Listener = () => void;
 const listeners = new Set<Listener>();
+const CLOUD_DATA_KEYS = new Set([
+  STORAGE_KEYS.TEAMS,
+  STORAGE_KEYS.PLAYERS,
+  STORAGE_KEYS.SESSIONS,
+  STORAGE_KEYS.ATTENDANCE,
+  STORAGE_KEYS.MATCHES,
+  STORAGE_KEYS.EVENTS,
+  STORAGE_KEYS.NOTES,
+  STORAGE_KEYS.ACTIVITY_LOGS,
+]);
+const CLOUD_STATE_FIELDS: Record<string, keyof TeamCloudState> = {
+  [STORAGE_KEYS.TEAMS]: 'team',
+  [STORAGE_KEYS.PLAYERS]: 'players',
+  [STORAGE_KEYS.SESSIONS]: 'sessions',
+  [STORAGE_KEYS.ATTENDANCE]: 'attendance',
+  [STORAGE_KEYS.MATCHES]: 'matches',
+  [STORAGE_KEYS.EVENTS]: 'events',
+  [STORAGE_KEYS.NOTES]: 'notes',
+  [STORAGE_KEYS.ACTIVITY_LOGS]: 'activityLogs',
+};
+
+let applyingCloudState = false;
+let cloudSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let cloudSyncError: string | null = null;
+let cloudSyncInProgress = false;
+let cloudPullInProgress = false;
+const pendingCloudKeys = new Set<string>();
+
+interface TeamCloudState {
+  team?: Team;
+  players?: Player[];
+  sessions?: TrainingSession[];
+  attendance?: AttendanceRecord[];
+  matches?: Match[];
+  events?: MatchEvent[];
+  notes?: AppNote[];
+  activityLogs?: ActivityLogEntry[];
+}
 
 function notify() {
   listeners.forEach((l) => {
@@ -51,6 +89,170 @@ export function subscribeToStore(listener: Listener) {
   return () => {
     listeners.delete(listener);
   };
+}
+
+export function getCloudSyncError(): string | null {
+  return cloudSyncError;
+}
+
+export function retryCloudSync(): void {
+  const [pendingKey] = pendingCloudKeys;
+  if (pendingKey) scheduleCloudSync(pendingKey);
+}
+
+export async function getCloudAuthHeaders(): Promise<Record<string, string>> {
+  if (!supabase) throw new Error('Supabase no está configurado');
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session?.access_token) {
+    throw new Error('La sesión de Supabase ha caducado. Vuelve a iniciar sesión.');
+  }
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${data.session.access_token}`,
+  };
+}
+
+function getLocalTeamCloudState(teamId: string): TeamCloudState {
+  const teams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
+  const players = getFromStorage<Player[]>(STORAGE_KEYS.PLAYERS, []).filter((item) => item.teamId === teamId);
+  const sessions = getFromStorage<TrainingSession[]>(STORAGE_KEYS.SESSIONS, []).filter((item) => item.teamId === teamId);
+  const matches = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []).filter((item) => item.teamId === teamId);
+  const matchIds = new Set(matches.map((item) => item.id));
+  const playerIds = new Set(players.map((item) => item.id));
+
+  return {
+    team: teams.find((item) => item.id === teamId),
+    players,
+    sessions,
+    attendance: getFromStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []).filter(
+      (item) => playerIds.has(item.playerId)
+    ),
+    matches,
+    events: getFromStorage<MatchEvent[]>(STORAGE_KEYS.EVENTS, []).filter((item) => matchIds.has(item.matchId)),
+    notes: getFromStorage<AppNote[]>(STORAGE_KEYS.NOTES, []).filter((item) => item.teamId === teamId),
+    activityLogs: getFromStorage<ActivityLogEntry[]>(STORAGE_KEYS.ACTIVITY_LOGS, []).filter(
+      (item) => item.teamId === teamId || !item.teamId
+    ),
+  };
+}
+
+function mergeCloudCollection<T>(
+  key: string,
+  isCurrentTeamRecord: (record: T) => boolean,
+  incoming: T[] | undefined
+): void {
+  if (!incoming) return;
+  const current = getFromStorage<T[]>(key, []);
+  const untouched = current.filter((record) => !isCurrentTeamRecord(record));
+  setLocalStorageWithoutCloudSync(key, [...untouched, ...incoming]);
+}
+
+function setLocalStorageWithoutCloudSync<T>(key: string, value: T): void {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+
+function applyTeamCloudState(teamId: string, state: TeamCloudState): void {
+  const teams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
+  if (state.team) {
+    const index = teams.findIndex((team) => team.id === teamId);
+    if (index === -1) teams.push(state.team);
+    else teams[index] = state.team;
+    setLocalStorageWithoutCloudSync(STORAGE_KEYS.TEAMS, teams);
+  }
+
+  const previousPlayerIds = new Set(
+    getFromStorage<Player[]>(STORAGE_KEYS.PLAYERS, [])
+      .filter((item) => item.teamId === teamId)
+      .map((item) => item.id)
+  );
+  const previousMatchIds = new Set(
+    getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, [])
+      .filter((item) => item.teamId === teamId)
+      .map((item) => item.id)
+  );
+  mergeCloudCollection<Player>(STORAGE_KEYS.PLAYERS, (item) => item.teamId === teamId, state.players);
+  mergeCloudCollection<TrainingSession>(STORAGE_KEYS.SESSIONS, (item) => item.teamId === teamId, state.sessions);
+  const teamPlayerIds = new Set((state.players || []).map((item) => item.id));
+  mergeCloudCollection<AttendanceRecord>(
+    STORAGE_KEYS.ATTENDANCE,
+    (item) => teamPlayerIds.has(item.playerId) || previousPlayerIds.has(item.playerId),
+    state.attendance
+  );
+  mergeCloudCollection<Match>(STORAGE_KEYS.MATCHES, (item) => item.teamId === teamId, state.matches);
+  const matchIds = new Set([...previousMatchIds, ...(state.matches || []).map((item) => item.id)]);
+  mergeCloudCollection<MatchEvent>(STORAGE_KEYS.EVENTS, (item) => matchIds.has(item.matchId), state.events);
+  mergeCloudCollection<AppNote>(STORAGE_KEYS.NOTES, (item) => item.teamId === teamId, state.notes);
+
+  if (state.activityLogs) {
+    const logs = getFromStorage<ActivityLogEntry[]>(STORAGE_KEYS.ACTIVITY_LOGS, []);
+    const otherTeamLogs = logs.filter((log) => log.teamId !== teamId);
+    const merged = new Map<string, ActivityLogEntry>();
+    [...otherTeamLogs, ...state.activityLogs].forEach((log) => merged.set(log.id, log));
+    setLocalStorageWithoutCloudSync(STORAGE_KEYS.ACTIVITY_LOGS, Array.from(merged.values()));
+  }
+}
+
+async function saveTeamCloudState(teamId: string, keys?: string[]): Promise<void> {
+  const fullState = getLocalTeamCloudState(teamId);
+  const state: TeamCloudState = {};
+  if (!keys) {
+    Object.assign(state, fullState);
+  } else {
+    keys.forEach((key) => {
+      const field = CLOUD_STATE_FIELDS[key];
+      if (field) Object.assign(state, { [field]: fullState[field] });
+    });
+  }
+  const headers = await getCloudAuthHeaders();
+  const response = await fetch('/api/shared-data', {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify({ teamId, state }),
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    throw new Error(result.error || `No se pudieron guardar los datos del equipo ${teamId}`);
+  }
+}
+
+async function persistLocalTeamStates(keys: string[]): Promise<void> {
+  if (!supabase || typeof window === 'undefined') return;
+  const user = getCurrentUser();
+  const allTeams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
+  const teamIds = user.role === 'admin'
+    ? allTeams.map((team) => team.id)
+    : user.teamIds.filter((teamId) => allTeams.some((team) => team.id === teamId));
+  for (const teamId of teamIds) {
+    await saveTeamCloudState(teamId, keys);
+  }
+}
+
+function scheduleCloudSync(key: string): void {
+  if (!supabase || applyingCloudState || typeof window === 'undefined') return;
+  pendingCloudKeys.add(key);
+  if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
+  cloudSyncTimer = setTimeout(() => {
+    cloudSyncTimer = null;
+    const changedKeys = Array.from(pendingCloudKeys);
+    pendingCloudKeys.clear();
+    cloudSyncInProgress = true;
+    persistLocalTeamStates(changedKeys)
+      .then(() => {
+        if (cloudSyncError) {
+          cloudSyncError = null;
+          notify();
+        }
+      })
+      .catch((error: unknown) => {
+        changedKeys.forEach((key) => pendingCloudKeys.add(key));
+        cloudSyncError = error instanceof Error ? error.message : 'Error al guardar cambios en Supabase';
+        console.error('[CloudSync] No se pudieron guardar los cambios compartidos:', error);
+        notify();
+      })
+      .finally(() => {
+        cloudSyncInProgress = false;
+      });
+  }, 400);
 }
 
 // Helpers seguros para LocalStorage
@@ -70,6 +272,7 @@ function setToStorage<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
     notify();
+    if (CLOUD_DATA_KEYS.has(key)) scheduleCloudSync(key);
   } catch (err) {
     console.error(`Error saving ${key} to localStorage:`, err);
   }
@@ -276,94 +479,90 @@ export function syncUsersFromCloud(cloudUsers: UserProfile[]): void {
 export async function fetchAndSyncUsersFromCloud(): Promise<UserProfile[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const res = await fetch('/api/admin/users');
-    if (!res.ok) return [];
+    const res = await fetch('/api/admin/users', {
+      headers: await getCloudAuthHeaders(),
+    });
     const data = await res.json();
-    if (data.success && Array.isArray(data.users)) {
-      syncUsersFromCloud(data.users);
-      return data.users;
+    if (!res.ok || !data.success || !Array.isArray(data.users)) {
+      throw new Error(data.error || 'No se pudieron cargar los usuarios desde Supabase');
     }
+    syncUsersFromCloud(data.users);
+    return data.users;
   } catch (err) {
-    console.warn('[CloudSync] Error fetching cloud users:', err);
+    console.error('[CloudSync] Error cargando usuarios de Supabase:', err);
+    throw err;
   }
-  return [];
 }
 
 export async function syncCurrentUserPermissions(): Promise<void> {
   if (typeof window === 'undefined' || !supabase) return;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.email) {
-      const userMeta = user.user_metadata || {};
-      const users = getUsers();
-      const idx = users.findIndex((u) => u.email.toLowerCase() === user.email?.toLowerCase());
-      if (idx !== -1) {
-        users[idx] = {
-          ...users[idx],
-          role: (userMeta.role as UserRole) || users[idx].role,
-          status: (userMeta.status as import('@/types').UserStatus) || users[idx].status,
-          teamIds: userMeta.teamIds || users[idx].teamIds,
-          permissionsByTeam: userMeta.permissionsByTeam || users[idx].permissionsByTeam,
-        };
-        setToStorage(STORAGE_KEYS.USERS, users);
-      }
+    const response = await fetch('/api/account', { headers: await getCloudAuthHeaders() });
+    const data = await response.json();
+    if (!response.ok || !data.success || !data.user) {
+      throw new Error(data.error || 'No se pudieron actualizar los permisos de la cuenta');
     }
+    saveCloudUserToStorage(data.user);
+    setCurrentUser(data.user.id);
   } catch (err) {
-    console.warn('[CloudSync] Error syncing current user permissions:', err);
+    console.error('[CloudSync] Error actualizando permisos de la cuenta:', err);
+    throw err;
   }
 }
 
-export async function pushAttendanceToCloud(records: AttendanceRecord[]): Promise<void> {
-  if (typeof window === 'undefined' || records.length === 0) return;
+export async function syncSharedDataFromCloud(): Promise<void> {
+  if (typeof window === 'undefined' || !supabase) return;
+  if (cloudSyncTimer || cloudSyncInProgress || cloudPullInProgress || pendingCloudKeys.size > 0) return;
+  cloudPullInProgress = true;
   try {
-    await fetch('/api/sync/attendance', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ records }),
+    const response = await fetch('/api/shared-data', { headers: await getCloudAuthHeaders() });
+    const data = await response.json();
+    if (!response.ok || !data.success || !Array.isArray(data.states)) {
+      throw new Error(data.error || 'No se pudieron cargar los datos compartidos');
+    }
+
+    const localTeams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
+    const allowedTeamIds: string[] = data.teamIds === null
+      ? localTeams.map((team) => team.id)
+      : Array.isArray(data.teamIds)
+        ? data.teamIds.filter((teamId: unknown): teamId is string => typeof teamId === 'string')
+        : [];
+    const states = new Map<string, TeamCloudState>();
+    data.states.forEach((entry: { teamId: string; state: TeamCloudState }) => {
+      if (entry && typeof entry.teamId === 'string' && entry.state && typeof entry.state === 'object') {
+        states.set(entry.teamId, entry.state);
+      }
     });
-  } catch (err) {
-    console.warn('[CloudSync] Error pushing attendance to cloud:', err);
+
+    applyingCloudState = true;
+    try {
+      states.forEach((state, teamId) => applyTeamCloudState(teamId, state));
+    } finally {
+      applyingCloudState = false;
+    }
+    notify();
+
+    if (getCurrentUser().role === 'admin') {
+      for (const teamId of allowedTeamIds) {
+        if (!states.has(teamId) && localTeams.some((team) => team.id === teamId)) {
+          await saveTeamCloudState(teamId);
+        }
+      }
+    }
+    cloudSyncError = null;
+  } catch (error: unknown) {
+    cloudSyncError = error instanceof Error ? error.message : 'Error al cargar los datos compartidos';
+    notify();
+    throw error;
+  } finally {
+    cloudPullInProgress = false;
+    notify();
   }
 }
 
 export async function syncAttendanceFromCloud(): Promise<AttendanceRecord[]> {
-  if (typeof window === 'undefined') return [];
-  try {
-    const res = await fetch('/api/sync/attendance');
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (data.success && Array.isArray(data.attendance)) {
-      const localAttendance = getFromStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []);
-      const mergedMap = new Map<string, AttendanceRecord>();
-
-      // 1. Añadir locales primero
-      localAttendance.forEach((rec) => {
-        mergedMap.set(`${rec.sessionId}_${rec.playerId}`, rec);
-      });
-
-      // 2. Fusionar los de la nube si son más recientes o nuevos
-      data.attendance.forEach((cloudRec: AttendanceRecord) => {
-        const key = `${cloudRec.sessionId}_${cloudRec.playerId}`;
-        const local = mergedMap.get(key);
-        if (!local) {
-          mergedMap.set(key, cloudRec);
-        } else {
-          const localTime = local.updatedAt ? new Date(local.updatedAt).getTime() : 0;
-          const cloudTime = cloudRec.updatedAt ? new Date(cloudRec.updatedAt).getTime() : 0;
-          if (cloudTime >= localTime) {
-            mergedMap.set(key, cloudRec);
-          }
-        }
-      });
-
-      const mergedList = Array.from(mergedMap.values());
-      setToStorage(STORAGE_KEYS.ATTENDANCE, mergedList);
-      return mergedList;
-    }
-  } catch (err) {
-    console.warn('[CloudSync] Error syncing attendance from cloud:', err);
-  }
-  return [];
+  await syncSharedDataFromCloud();
+  return getFromStorage<AttendanceRecord[]>(STORAGE_KEYS.ATTENDANCE, []);
 }
 
 export function inviteUser(
@@ -560,6 +759,11 @@ export function logoutUser(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
     notify();
+  }
+  if (supabase) {
+    supabase.auth.signOut().catch((error: unknown) => {
+      console.error('[auth] Error cerrando sesión en Supabase:', error);
+    });
   }
 }
 
@@ -837,9 +1041,7 @@ export function setAttendanceRecord(
     });
   }
 
-  const updatedRec = idx !== -1 ? all[idx] : all[all.length - 1];
   setToStorage(STORAGE_KEYS.ATTENDANCE, all);
-  pushAttendanceToCloud([updatedRec]).catch(() => {});
 
   logActivity(
     'REGISTRO_ASISTENCIA',

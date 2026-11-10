@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import React, { useState } from 'react';
-import { loginUser, saveCloudUserToStorage, setCurrentUser } from '@/lib/storage';
+import { getCloudAuthHeaders, loginUser, saveCloudUserToStorage, setCurrentUser } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { APP_CONFIG } from '@/config/appConfig';
 import { Lock, Mail, ShieldAlert, ArrowRight, CheckCircle2, KeyRound } from 'lucide-react';
@@ -36,16 +36,16 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
         });
 
         if (authData?.user) {
-          const userMeta = authData.user.user_metadata || {};
-          const userProfile: UserProfile = {
-            id: authData.user.id,
-            email: authData.user.email || trimmedEmail,
-            name: userMeta.name || trimmedEmail.split('@')[0],
-            role: (userMeta.role as 'admin' | 'delegate') || 'delegate',
-            status: (userMeta.status as 'active' | 'invited' | 'disabled') || 'active',
-            teamIds: userMeta.teamIds || ['team-prec'],
-            permissionsByTeam: userMeta.permissionsByTeam || {},
-          };
+          const profileResponse = await fetch('/api/account', {
+            headers: await getCloudAuthHeaders(),
+          });
+          const profileData = await profileResponse.json();
+          if (!profileResponse.ok || !profileData.success || !profileData.user) {
+            await supabase.auth.signOut();
+            setError(profileData.error || 'No se pudo validar el acceso a la aplicación.');
+            return;
+          }
+          const userProfile: UserProfile = profileData.user;
 
           saveCloudUserToStorage(userProfile);
           setCurrentUser(userProfile.id);
@@ -263,4 +263,3 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
     </div>
   );
 }
-

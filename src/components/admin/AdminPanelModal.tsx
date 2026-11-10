@@ -20,13 +20,9 @@ import {
 import {
   getUsers,
   getActivityLogs,
-  inviteUser,
-  toggleUserStatus,
-  updateUserPermissions,
-  updateUserTeams,
-  resetUserPassword,
   saveCloudUserToStorage,
   fetchAndSyncUsersFromCloud,
+  getCloudAuthHeaders,
 } from '@/lib/storage';
 import { PERMISSION_METADATA, DEFAULT_DELEGATE_PERMISSIONS } from '@/lib/permissions';
 
@@ -56,6 +52,7 @@ export function AdminPanelModal({
   const [inviteName, setInviteName] = useState('');
   const [inviteTeams, setInviteTeams] = useState<string[]>(teams.map((t) => t.id));
   const [inviteFeedback, setInviteFeedback] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Estado para auditoría
   const [logs, setLogs] = useState<ActivityLogEntry[]>(() => getActivityLogs());
@@ -66,7 +63,9 @@ export function AdminPanelModal({
 
   useEffect(() => {
     if (isOpen) {
-      fetchAndSyncUsersFromCloud().then(() => reloadData());
+      fetchAndSyncUsersFromCloud()
+        .then(() => reloadData())
+        .catch((error: unknown) => setActionError((error as Error).message || 'No se pudieron cargar los usuarios'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -104,13 +103,29 @@ export function AdminPanelModal({
     onRefresh();
   };
 
+  const patchUserInCloud = async (userId: string, updates: Record<string, unknown>) => {
+    const response = await fetch('/api/admin/users', {
+      method: 'PATCH',
+      headers: await getCloudAuthHeaders(),
+      body: JSON.stringify({ userId, updates }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success || !data.user) {
+      throw new Error(data.error || 'No se pudieron guardar los cambios en Supabase');
+    }
+    saveCloudUserToStorage(data.user);
+    setActionError(null);
+    reloadData();
+  };
+
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setInviteFeedback(null);
+    setActionError(null);
     try {
       const res = await fetch('/api/admin/invite-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await getCloudAuthHeaders(),
         body: JSON.stringify({
           email: inviteEmail.trim().toLowerCase(),
           name: inviteName.trim(),
@@ -123,80 +138,74 @@ export function AdminPanelModal({
         throw new Error(data.error || 'Error al invitar delegado');
       }
 
-      saveCloudUserToStorage(data.user);
+      const { password: assignedPassword, ...cloudUser } = data.user;
+      saveCloudUserToStorage(cloudUser);
       setInviteFeedback(
-        `✅ Delegado creado en la nube. Contraseña asignada: ${data.user.password}`
+        `✅ Delegado creado en la nube. Contraseña asignada: ${assignedPassword}`
       );
       setInviteEmail('');
       setInviteName('');
       reloadData();
     } catch (err: unknown) {
-      alert((err as Error).message || 'Error al invitar');
+      setActionError((err as Error).message || 'Error al invitar');
     }
   };
 
-  const handleToggleStatus = (userId: string) => {
+  const handleToggleStatus = async (userId: string) => {
     if (confirm('¿Deseas cambiar el estado de acceso de este usuario?')) {
-      toggleUserStatus(userId);
-      reloadData();
-
       const all = getUsers();
       const targetUser = all.find((u) => u.id === userId);
       if (targetUser) {
-        fetch('/api/admin/users', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId,
-            updates: { status: targetUser.status },
-          }),
-        }).catch((err) => console.warn('Error syncing status to cloud:', err));
+        try {
+          await patchUserInCloud(userId, {
+            status: targetUser.status === 'active' ? 'disabled' : 'active',
+          });
+        } catch (error: unknown) {
+          setActionError((error as Error).message || 'No se pudo actualizar el estado del usuario');
+        }
       }
     }
   };
 
-  const handleResetPassword = (userId: string) => {
+  const handleResetPassword = async (userId: string) => {
     const newPass = prompt('Introduce nueva contraseña provisional (o deja vacío para autogenerar):');
     if (newPass !== null) {
-      const assigned = resetUserPassword(userId, newPass || undefined);
-      reloadData();
-      alert(`Acceso actualizado. Nueva contraseña: ${assigned}`);
-
-      fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          updates: { password: assigned },
-        }),
-      }).catch((err) => console.warn('Error syncing password to cloud:', err));
+      const assigned = newPass.trim() || `mareo${Math.floor(1000 + Math.random() * 9000)}`;
+      try {
+        await patchUserInCloud(userId, { password: assigned });
+        alert(`Acceso actualizado. Nueva contraseña: ${assigned}`);
+      } catch (error: unknown) {
+        setActionError((error as Error).message || 'No se pudo restablecer la contraseña');
+      }
     }
   };
 
-  const handleTogglePermission = (
+  const handleTogglePermission = async (
     userId: string,
     teamId: string,
     permKey: PermissionKey,
     currentValue: boolean
   ) => {
-    updateUserPermissions(userId, teamId, { [permKey]: !currentValue });
-    reloadData();
-
-    const all = getUsers();
-    const targetUser = all.find((u) => u.id === userId);
-    if (targetUser) {
-      fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          updates: { permissionsByTeam: targetUser.permissionsByTeam },
-        }),
-      }).catch((err) => console.warn('Error syncing permission to cloud:', err));
+    const targetUser = users.find((user) => user.id === userId);
+    if (!targetUser) return;
+    const teamPermissions = {
+      ...DEFAULT_DELEGATE_PERMISSIONS,
+      ...targetUser.permissionsByTeam?.[teamId],
+      [permKey]: !currentValue,
+    };
+    try {
+      await patchUserInCloud(userId, {
+        permissionsByTeam: {
+          ...targetUser.permissionsByTeam,
+          [teamId]: teamPermissions,
+        },
+      });
+    } catch (error: unknown) {
+      setActionError((error as Error).message || 'No se pudieron actualizar los permisos');
     }
   };
 
-  const handleToggleTeamAssignment = (userId: string, teamId: string) => {
+  const handleToggleTeamAssignment = async (userId: string, teamId: string) => {
     const targetUser = users.find((u) => u.id === userId);
     if (!targetUser) return;
 
@@ -211,17 +220,17 @@ export function AdminPanelModal({
       newTeams = [...targetUser.teamIds, teamId];
     }
 
-    updateUserTeams(userId, newTeams);
-    reloadData();
-
-    fetch('/api/admin/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        updates: { teamIds: newTeams },
-      }),
-    }).catch((err) => console.warn('Error syncing teams to cloud:', err));
+    try {
+      const permissionsByTeam = { ...targetUser.permissionsByTeam };
+      newTeams.forEach((newTeamId) => {
+        if (!permissionsByTeam[newTeamId]) {
+          permissionsByTeam[newTeamId] = { ...DEFAULT_DELEGATE_PERMISSIONS };
+        }
+      });
+      await patchUserInCloud(userId, { teamIds: newTeams, permissionsByTeam });
+    } catch (error: unknown) {
+      setActionError((error as Error).message || 'No se pudieron actualizar los equipos asignados');
+    }
   };
 
   const handleExportLogs = () => {
@@ -295,6 +304,11 @@ export function AdminPanelModal({
 
         {/* Contenido según pestaña */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {actionError && (
+            <div role="alert" className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
+              {actionError}
+            </div>
+          )}
           {activeTab === 'users' ? (
             <div className="space-y-4">
               {/* Barra superior con botón de invitar */}

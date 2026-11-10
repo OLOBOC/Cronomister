@@ -23,8 +23,10 @@ Esta guía paso a paso está pensada para que cualquier persona, sin necesidad d
 1. En el panel izquierdo de Supabase, pulsa en el icono **SQL Editor**.
 2. Pulsa en **New Query**.
 3. Abre el archivo de tu repositorio `supabase/migrations/001_initial_schema.sql`, copia todo su contenido, pégalo en el editor y pulsa **Run**.
-4. Repite el proceso para `supabase/migrations/002_auth_permissions_audit.sql`: crea otra consulta, pega el contenido y pulsa **Run**.
-5. *¡Listo!* Las tablas, funciones de permisos, registros de auditoría inmutable y políticas Row Level Security (RLS) quedan activadas en el servidor.
+4. Repite el proceso, en este orden, para:
+   - `supabase/migrations/002_auth_permissions_audit.sql`
+   - `supabase/migrations/003_shared_app_data.sql`
+5. *¡Listo!* La última migración crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas.
 
 ---
 
@@ -43,14 +45,20 @@ Por seguridad y privacidad de los menores:
 1. Entra en [vercel.com](https://vercel.com) e inicia sesión con tu cuenta de GitHub (`OLOBOC`).
 2. Pulsa en **Add New...** -> **Project**.
 3. Selecciona tu repositorio: `OLOBOC/Cronomister`.
-4. En la configuración del proyecto, despliega el apartado **Environment Variables** y añade las siguientes dos claves (las obtendrás en Supabase -> **Project Settings** -> **API**):
+4. En la configuración del proyecto, abre **Environment Variables** y añade:
    - `NEXT_PUBLIC_SUPABASE_URL`: Tu URL del proyecto (ej: `https://abcdefgh.supabase.co`).
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Tu clave pública `anon` `public`.
+   - `SUPABASE_SERVICE_ROLE_KEY`: La clave secreta `service_role` de Supabase, en **Project Settings** -> **API Keys**. **No** uses el prefijo `NEXT_PUBLIC_` ni la compartas; solo la usan las rutas seguras del servidor.
 5. Pulsa el botón **Deploy**. En 2 minutos tendrás tu web en marcha con dirección `https://cronomister-xxxx.vercel.app` (y certificado SSL/HTTPS automático).
 
 ---
 
 ## 5. Acceso y Primer Uso
+
+### Inicializar los datos compartidos
+- Después de aplicar la migración 003 y desplegar las variables, inicia sesión primero con la cuenta de administrador desde el navegador que contiene los datos más actualizados.
+- En ese primer acceso, los datos locales de cada equipo que aún no exista en la base de datos se copiarán a Supabase. A partir de ahí, las ediciones del admin y las asistencias se guardan en la nube y se reflejan en los demás dispositivos en un máximo aproximado de 20 segundos.
+- Los delegados pueden entrar después desde sus móviles. No borres los datos locales del navegador del admin hasta confirmar que los equipos ya están cargados en Supabase.
 
 ### Acceso del Entrenador Principal (Admin)
 - **Email**: `entrenador@mareo.es`

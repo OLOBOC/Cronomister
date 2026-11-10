@@ -18,6 +18,8 @@ import {
   isAuthenticated,
   syncAttendanceFromCloud,
   syncCurrentUserPermissions,
+  getCloudSyncError,
+  retryCloudSync,
 } from '@/lib/storage';
 import { Team, Player, Match, TrainingSession, AttendanceRecord, AppNote, UserProfile } from '@/types';
 import { Header } from '@/components/layout/Header';
@@ -36,6 +38,7 @@ import { PlayerFichaView } from '@/components/player-profile/PlayerFichaView';
 export default function Home() {
   const [isClient, setIsClient] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [cloudSyncError, setCloudSyncErrorState] = useState<string | null>(null);
 
   // Estados principales de navegación
   const [currentTab, setCurrentTab] = useState<'resumen' | 'entreno' | 'partidos' | 'jugadores'>('resumen');
@@ -61,6 +64,7 @@ export default function Home() {
 
   // Sincronización de datos
   const syncDataFromStore = () => {
+    setCloudSyncErrorState(getCloudSyncError());
     const user = getCurrentUser();
     const team = getCurrentTeam();
     setCurrentUserState(user);
@@ -85,23 +89,46 @@ export default function Home() {
     syncDataFromStore();
 
     if (authStatus) {
-      syncAttendanceFromCloud().then(() => syncDataFromStore());
-      syncCurrentUserPermissions().then(() => syncDataFromStore());
+      syncAttendanceFromCloud()
+        .then(() => syncDataFromStore())
+        .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+      syncCurrentUserPermissions()
+        .then(() => syncDataFromStore())
+        .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
     }
 
     const unsubscribe = subscribeToStore(() => {
       syncDataFromStore();
     });
 
-    return () => unsubscribe();
+    const refreshInterval = authStatus
+      ? window.setInterval(() => {
+          if (document.visibilityState !== 'visible') return;
+          syncAttendanceFromCloud()
+            .then(() => syncDataFromStore())
+            .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+          syncCurrentUserPermissions()
+            .then(() => syncDataFromStore())
+            .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+        }, 20000)
+      : null;
+
+    return () => {
+      unsubscribe();
+      if (refreshInterval !== null) window.clearInterval(refreshInterval);
+    };
   }, []);
 
   const handleLoginSuccess = (user: UserProfile) => {
     setCurrentUserState(user);
     setIsLoggedIn(true);
     syncDataFromStore();
-    syncAttendanceFromCloud().then(() => syncDataFromStore());
-    syncCurrentUserPermissions().then(() => syncDataFromStore());
+    syncAttendanceFromCloud()
+      .then(() => syncDataFromStore())
+      .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+    syncCurrentUserPermissions()
+      .then(() => syncDataFromStore())
+      .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
   };
 
   const handleLogout = () => {
@@ -179,6 +206,14 @@ export default function Home() {
         onOpenAdminPanel={() => setIsAdminPanelOpen(true)}
         onLogout={handleLogout}
       />
+      {cloudSyncError && (
+        <div role="alert" className="mx-auto mt-3 w-[calc(100%-2rem)] max-w-2xl rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800">
+          <div className="flex items-center justify-between gap-3">
+            <span>No se pudo sincronizar con Supabase: {cloudSyncError}</span>
+            <button onClick={retryCloudSync} className="shrink-0 underline">Reintentar</button>
+          </div>
+        </div>
+      )}
 
       {/* Contenedor Principal Responsive (Mobile First, Max-W-2xl centrado en escritorio) */}
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4">

@@ -73,9 +73,13 @@ export function TrainingView({ team, players }: TrainingViewProps) {
 
   useEffect(() => {
     reloadData();
-    syncAttendanceFromCloud().then(() => reloadData());
+    syncAttendanceFromCloud().then(() => reloadData()).catch((error: unknown) => {
+      console.error('[CloudSync] Error actualizando entrenamientos:', error);
+    });
     const interval = setInterval(() => {
-      syncAttendanceFromCloud().then(() => reloadData());
+      syncAttendanceFromCloud().then(() => reloadData()).catch((error: unknown) => {
+        console.error('[CloudSync] Error actualizando entrenamientos:', error);
+      });
     }, 10000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
