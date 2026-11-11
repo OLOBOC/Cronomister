@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Team, Player, TrainingSession, AttendanceRecord, AttendanceReason } from '@/types';
 import {
   Calendar,
@@ -44,6 +44,7 @@ export function TrainingView({ team, players }: TrainingViewProps) {
 
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr);
+  const selectedDateRef = useRef<string>(todayStr);
   const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([]);
   const [generalNote, setGeneralNote] = useState('');
   const [isNewDateModalOpen, setIsNewDateModalOpen] = useState(false);
@@ -54,15 +55,17 @@ export function TrainingView({ team, players }: TrainingViewProps) {
     const sess = getSessions(team.id);
     setSessions(sess);
 
-    const current = sess.find((s) => s.date === selectedDate);
+    const current = sess.find((s) => s.date === selectedDateRef.current);
     if (!current) {
       if (sess.length > 0) {
         const nextOrLast = sess.find((s) => s.date >= todayStr) || sess[sess.length - 1];
+        selectedDateRef.current = nextOrLast.date;
         setSelectedDate(nextOrLast.date);
         setGeneralNote(nextOrLast.generalNote || '');
       } else {
         const initialSess = getOrCreateSession(todayStr, team.id);
         setSessions([initialSess]);
+        selectedDateRef.current = todayStr;
         setSelectedDate(todayStr);
         setGeneralNote(initialSess.generalNote || '');
       }
@@ -84,6 +87,7 @@ export function TrainingView({ team, players }: TrainingViewProps) {
   }, [team.id]);
 
   const handleSelectDate = (date: string) => {
+    selectedDateRef.current = date;
     setSelectedDate(date);
     const s = sessions.find((item) => item.date === date);
     setGeneralNote(s?.generalNote || '');
@@ -100,6 +104,7 @@ export function TrainingView({ team, players }: TrainingViewProps) {
     }
 
     getOrCreateSession(newDateInput, team.id);
+    selectedDateRef.current = newDateInput;
     setSelectedDate(newDateInput);
     setIsNewDateModalOpen(false);
     reloadData();
