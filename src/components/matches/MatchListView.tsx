@@ -143,14 +143,15 @@ export function MatchListView({
             const recordsCount = Object.values(m.records || {})
               .filter((record) => record.status === 'J' && record.minutes > 0)
               .length;
-            const hasMatchResult = m.status === 'finished' ||
-              (m.scoreMareo !== undefined && m.scoreRival !== undefined);
-            const statusLabel = recordsCount > 0
-              ? `${recordsCount} con minutos`
-              : hasMatchResult
-                ? 'Jugado · sin minutos'
-                : 'Pendiente';
-            const hasData = recordsCount > 0 || hasMatchResult;
+            const isFinished = m.status === 'finished';
+            const hasScore = isFinished && m.scoreMareo !== undefined && m.scoreRival !== undefined;
+            const statusLabel = isFinished
+              ? recordsCount > 0
+                ? `Finalizado · ${recordsCount} con minutos`
+                : hasScore
+                  ? 'Finalizado'
+                  : 'Finalizado · sin minutos'
+              : 'Pendiente';
             const formattedDate = m.date.split('-').reverse().join('/');
             const currentType = m.matchType || 'league';
 
@@ -180,7 +181,7 @@ export function MatchListView({
                         {m.isHome ? 'vs ' : 'en '}
                         {m.rival}
                       </span>
-                      {m.scoreMareo !== undefined && m.scoreRival !== undefined && (
+                      {hasScore && (
                         <span className="font-black text-xs bg-[var(--bg)] px-2 py-0.5 rounded-md border border-[var(--line)]">
                           {m.scoreMareo} – {m.scoreRival}
                         </span>
@@ -213,7 +214,7 @@ export function MatchListView({
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      hasData
+                      isFinished
                         ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                         : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
                     }`}

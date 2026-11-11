@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Match, Player, Team } from '@/types';
+import { Match, Player, Team, MatchStatus } from '@/types';
 import { X, Check, Clock } from 'lucide-react';
 import { updateMatchRosterManual, updateMatch } from '@/lib/storage';
 import { CONVOCATION_LABELS } from '@/lib/terminology';
@@ -38,6 +38,10 @@ export function ManualMinutesModal({
     return initial;
   });
 
+  const [matchStatus, setMatchStatus] = useState<MatchStatus>(match.status || 'scheduled');
+  const [hasScore, setHasScore] = useState<boolean>(
+    match.scoreMareo !== undefined && match.scoreRival !== undefined
+  );
   const [scoreMareo, setScoreMareo] = useState(match.scoreMareo ?? 0);
   const [scoreRival, setScoreRival] = useState(match.scoreRival ?? 0);
 
@@ -62,9 +66,9 @@ export function ManualMinutesModal({
 
     // Guardar marcador y estado
     updateMatch(match.id, {
-      scoreMareo,
-      scoreRival,
-      status: 'finished',
+      scoreMareo: hasScore && matchStatus === 'finished' ? scoreMareo : null,
+      scoreRival: hasScore && matchStatus === 'finished' ? scoreRival : null,
+      status: matchStatus,
     });
 
     // Guardar minutos de cada jugador con origen 'manual'
@@ -101,30 +105,79 @@ export function ManualMinutesModal({
         </div>
 
         <form onSubmit={handleSave} className="space-y-4">
-          {/* Marcador final */}
-          <div className="p-3 rounded-xl bg-[var(--bg)] border border-[var(--line)] flex items-center justify-around text-center">
-            <div>
-              <label className="block text-[11px] font-bold text-[var(--mute)] uppercase mb-1">Mareo</label>
-              <input
-                type="number"
-                min={0}
-                value={scoreMareo}
-                onChange={(e) => setScoreMareo(Math.max(0, Number(e.target.value) || 0))}
-                className="w-16 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] text-center font-extrabold text-lg"
-              />
-            </div>
-            <span className="text-2xl font-black text-[var(--mute)]">–</span>
-            <div>
-              <label className="block text-[11px] font-bold text-[var(--mute)] uppercase mb-1">Rival</label>
-              <input
-                type="number"
-                min={0}
-                value={scoreRival}
-                onChange={(e) => setScoreRival(Math.max(0, Number(e.target.value) || 0))}
-                className="w-16 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] text-center font-extrabold text-lg"
-              />
-            </div>
+          {/* Selector de estado */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMatchStatus('scheduled');
+                setHasScore(false);
+              }}
+              className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                matchStatus === 'scheduled'
+                  ? 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200'
+                  : 'bg-[var(--bg)] text-[var(--mute)] border-[var(--line)]'
+              }`}
+            >
+              ⏳ Pendiente (por jugar)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMatchStatus('finished')}
+              className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all ${
+                matchStatus === 'finished'
+                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-200'
+                  : 'bg-[var(--bg)] text-[var(--mute)] border-[var(--line)]'
+              }`}
+            >
+              ✅ Finalizado (jugado)
+            </button>
           </div>
+
+          {/* Marcador final */}
+          {matchStatus === 'finished' ? (
+            <div className="p-3 rounded-xl bg-[var(--bg)] border border-[var(--line)] space-y-2">
+              <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={hasScore}
+                  onChange={(e) => setHasScore(e.target.checked)}
+                  className="rounded border-[var(--line)]"
+                />
+                <span>Registrar marcador final del partido</span>
+              </label>
+
+              {hasScore && (
+                <div className="flex items-center justify-around text-center pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[var(--mute)] uppercase mb-1">Mareo</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={scoreMareo}
+                      onChange={(e) => setScoreMareo(Math.max(0, Number(e.target.value) || 0))}
+                      className="w-16 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] text-center font-extrabold text-lg"
+                    />
+                  </div>
+                  <span className="text-2xl font-black text-[var(--mute)]">–</span>
+                  <div>
+                    <label className="block text-[11px] font-bold text-[var(--mute)] uppercase mb-1">Rival</label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={scoreRival}
+                      onChange={(e) => setScoreRival(Math.max(0, Number(e.target.value) || 0))}
+                      className="w-16 py-1.5 rounded-lg border border-[var(--line)] bg-[var(--card)] text-center font-extrabold text-lg"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 text-xs text-amber-900 dark:text-amber-200">
+              Partido guardado como <b>Pendiente</b>. Puedes configurar la convocatoria previa sin asignar marcador.
+            </div>
+          )}
 
           <div className="text-xs text-[var(--mute)] font-medium flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-amber-500" />

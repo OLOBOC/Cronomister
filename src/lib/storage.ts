@@ -101,15 +101,27 @@ export function retryCloudSync(): void {
   if (pendingKey) scheduleCloudSync(pendingKey);
 }
 
+let cachedAuthHeader: { token: string; expiresAt: number } | null = null;
+
 export async function getCloudAuthHeaders(): Promise<Record<string, string>> {
   if (!supabase) throw new Error('Supabase no está configurado');
+  const now = Date.now();
+  if (cachedAuthHeader && cachedAuthHeader.expiresAt > now + 60000) {
+    return {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${cachedAuthHeader.token}`,
+    };
+  }
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session?.access_token) {
     throw new Error('La sesión de Supabase ha caducado. Vuelve a iniciar sesión.');
   }
+  const token = data.session.access_token;
+  const expiresAt = data.session.expires_at ? data.session.expires_at * 1000 : now + 3600000;
+  cachedAuthHeader = { token, expiresAt };
   return {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${data.session.access_token}`,
+    Authorization: `Bearer ${token}`,
   };
 }
 
@@ -223,9 +235,34 @@ async function persistLocalTeamStates(keys: string[]): Promise<void> {
   const teamIds = user.role === 'admin'
     ? allTeams.map((team) => team.id)
     : user.teamIds.filter((teamId) => allTeams.some((team) => team.id === teamId));
-  for (const teamId of teamIds) {
-    await saveTeamCloudState(teamId, keys);
+  await Promise.all(teamIds.map((teamId) => saveTeamCloudState(teamId, keys)));
+}
+
+export function flushCloudSync(): Promise<void> {
+  if (cloudSyncTimer) {
+    clearTimeout(cloudSyncTimer);
+    cloudSyncTimer = null;
   }
+  const changedKeys = Array.from(pendingCloudKeys);
+  if (changedKeys.length === 0) return Promise.resolve();
+  pendingCloudKeys.clear();
+  cloudSyncInProgress = true;
+  return persistLocalTeamStates(changedKeys)
+    .then(() => {
+      if (cloudSyncError) {
+        cloudSyncError = null;
+        notify();
+      }
+    })
+    .catch((error: unknown) => {
+      changedKeys.forEach((key) => pendingCloudKeys.add(key));
+      cloudSyncError = error instanceof Error ? error.message : 'Error al guardar cambios en Supabase';
+      console.error('[CloudSync] No se pudieron guardar los cambios compartidos:', error);
+      notify();
+    })
+    .finally(() => {
+      cloudSyncInProgress = false;
+    });
 }
 
 function scheduleCloudSync(key: string): void {
@@ -233,27 +270,8 @@ function scheduleCloudSync(key: string): void {
   pendingCloudKeys.add(key);
   if (cloudSyncTimer) clearTimeout(cloudSyncTimer);
   cloudSyncTimer = setTimeout(() => {
-    cloudSyncTimer = null;
-    const changedKeys = Array.from(pendingCloudKeys);
-    pendingCloudKeys.clear();
-    cloudSyncInProgress = true;
-    persistLocalTeamStates(changedKeys)
-      .then(() => {
-        if (cloudSyncError) {
-          cloudSyncError = null;
-          notify();
-        }
-      })
-      .catch((error: unknown) => {
-        changedKeys.forEach((key) => pendingCloudKeys.add(key));
-        cloudSyncError = error instanceof Error ? error.message : 'Error al guardar cambios en Supabase';
-        console.error('[CloudSync] No se pudieron guardar los cambios compartidos:', error);
-        notify();
-      })
-      .finally(() => {
-        cloudSyncInProgress = false;
-      });
-  }, 400);
+    flushCloudSync().catch(() => {});
+  }, 150);
 }
 
 // Helpers seguros para LocalStorage
@@ -377,6 +395,36 @@ export function initStore() {
 
     localStorage.setItem('cronomister_store_version', STORE_VERSION);
     notify();
+  }
+
+  // Comprobar y restablecer el partido de J7 vs Codema "C" si quedó marcado de prueba
+  try {
+    const rawMatches = localStorage.getItem(STORAGE_KEYS.MATCHES);
+    if (rawMatches) {
+      const currentMatches: Match[] = JSON.parse(rawMatches);
+      let matchFixed = false;
+      const fixed = currentMatches.map((m) => {
+        if (
+          (m.id === 'm-prec-7' || (m.round === 7 && m.rival.toLowerCase().includes('codema'))) &&
+          (m.scoreMareo !== undefined || m.status === 'finished' || Object.keys(m.records || {}).length > 0)
+        ) {
+          matchFixed = true;
+          const { scoreMareo, scoreRival, ...rest } = m;
+          return {
+            ...rest,
+            status: 'scheduled' as const,
+            records: {},
+          };
+        }
+        return m;
+      });
+      if (matchFixed) {
+        localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(fixed));
+        scheduleCloudSync(STORAGE_KEYS.MATCHES);
+      }
+    }
+  } catch (err) {
+    console.warn('[initStore] Error verificando J7 Codema:', err);
   }
 
   // Escuchar cambios de otras pestañas
@@ -513,7 +561,10 @@ export async function syncCurrentUserPermissions(): Promise<void> {
 
 export async function syncSharedDataFromCloud(teamId?: string): Promise<void> {
   if (typeof window === 'undefined' || !supabase) return;
-  if (cloudSyncTimer || cloudSyncInProgress || cloudPullInProgress || pendingCloudKeys.size > 0) return;
+  if (cloudPullInProgress) return;
+  if (cloudSyncTimer || pendingCloudKeys.size > 0) {
+    await flushCloudSync().catch(() => {});
+  }
   cloudPullInProgress = true;
   try {
     const query = teamId ? `?teamId=${encodeURIComponent(teamId)}` : '';
@@ -1121,7 +1172,13 @@ export function addMatch(
   return newMatch;
 }
 
-export function updateMatch(matchId: string, updates: Partial<Match>): boolean {
+export function updateMatch(
+  matchId: string,
+  updates: Partial<Omit<Match, 'scoreMareo' | 'scoreRival'>> & {
+    scoreMareo?: number | null;
+    scoreRival?: number | null;
+  }
+): boolean {
   const user = getCurrentUser();
   const all = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
   const idx = all.findIndex((m) => m.id === matchId);
@@ -1138,7 +1195,26 @@ export function updateMatch(matchId: string, updates: Partial<Match>): boolean {
     status: currentMatch.status,
   };
 
-  all[idx] = { ...all[idx], ...updates };
+  const { scoreMareo: newScoreMareo, scoreRival: newScoreRival, ...otherUpdates } = updates;
+  const updated: Match = { ...all[idx], ...otherUpdates };
+
+  // Limpiar marcadores si se indica explícitamente null/undefined
+  if ('scoreMareo' in updates) {
+    if (newScoreMareo !== null && newScoreMareo !== undefined) {
+      updated.scoreMareo = newScoreMareo;
+    } else {
+      delete updated.scoreMareo;
+    }
+  }
+  if ('scoreRival' in updates) {
+    if (newScoreRival !== null && newScoreRival !== undefined) {
+      updated.scoreRival = newScoreRival;
+    } else {
+      delete updated.scoreRival;
+    }
+  }
+
+  all[idx] = updated;
   setToStorage(STORAGE_KEYS.MATCHES, all);
 
   logActivity(
@@ -1147,6 +1223,34 @@ export function updateMatch(matchId: string, updates: Partial<Match>): boolean {
     JSON.stringify(previousState),
     JSON.stringify(updates),
     currentMatch.teamId
+  );
+
+  return true;
+}
+
+export function deleteMatch(matchId: string): boolean {
+  const user = getCurrentUser();
+  const all = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
+  const matchToDelete = all.find((m) => m.id === matchId);
+  if (!matchToDelete) return false;
+
+  assertPermission(user, matchToDelete.teamId, 'control_match', 'eliminar un partido');
+
+  const filtered = all.filter((m) => m.id !== matchId);
+  setToStorage(STORAGE_KEYS.MATCHES, filtered);
+
+  const events = getFromStorage<MatchEvent[]>(STORAGE_KEYS.EVENTS, []);
+  const filteredEvents = events.filter((e) => e.matchId !== matchId);
+  if (filteredEvents.length !== events.length) {
+    setToStorage(STORAGE_KEYS.EVENTS, filteredEvents);
+  }
+
+  logActivity(
+    'BAJA_PARTIDO',
+    `Partido eliminado: J${matchToDelete.round} vs ${matchToDelete.rival}`,
+    JSON.stringify(matchToDelete),
+    undefined,
+    matchToDelete.teamId
   );
 
   return true;

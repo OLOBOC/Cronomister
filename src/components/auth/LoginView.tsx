@@ -1,7 +1,7 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
-import { getCloudAuthHeaders, loginUser, saveCloudUserToStorage, setCurrentUser } from '@/lib/storage';
+import { getCloudAuthHeaders, loginUser, saveCloudUserToStorage, setCurrentUser, syncSharedDataFromCloud } from '@/lib/storage';
 import { supabase } from '@/lib/supabase';
 import { APP_CONFIG } from '@/config/appConfig';
 import { Lock, Mail, ShieldAlert, ArrowRight, CheckCircle2, KeyRound } from 'lucide-react';
@@ -49,6 +49,13 @@ export function LoginView({ onLoginSuccess }: LoginViewProps) {
 
           saveCloudUserToStorage(userProfile);
           setCurrentUser(userProfile.id);
+
+          try {
+            await syncSharedDataFromCloud();
+          } catch (syncErr) {
+            console.warn('[Login] Sincronización inicial con aviso:', syncErr);
+          }
+
           onLoginSuccess(userProfile);
           return;
         }

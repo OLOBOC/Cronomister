@@ -10,11 +10,13 @@ import {
   AlertCircle,
   XCircle,
   TrendingUp,
+  Pencil,
 } from 'lucide-react';
 import { calculatePlayerKPIs } from '@/lib/minuteEngine';
 import { generatePlayerPdf } from '@/lib/pdfGenerator';
 import { deletePlayerData } from '@/lib/storage';
 import { hasPermission } from '@/lib/permissions';
+import { EditPlayerModal } from '@/components/roster/EditPlayerModal';
 
 interface PlayerFichaViewProps {
   player: Player;
@@ -40,6 +42,7 @@ export function PlayerFichaView({
   onRefresh,
 }: PlayerFichaViewProps) {
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const isAdmin = currentUser.role === 'admin';
@@ -117,16 +120,27 @@ export function PlayerFichaView({
             </div>
           </div>
 
-          {canDownloadPdf && (
-            <button
-              onClick={handleDownloadPdf}
-              disabled={isDownloading}
-              className="px-3.5 py-2.5 bg-[var(--red)] hover:bg-[var(--red-hover)] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all shrink-0"
-            >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Descargar</span> PDF
-            </button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {isAdmin && (
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="px-3.5 py-2.5 bg-[var(--card)] border border-[var(--line)] hover:border-[var(--mute)] text-[var(--ink)] font-bold text-xs rounded-xl flex items-center gap-1.5 transition-all shrink-0"
+              >
+                <Pencil className="w-4 h-4 text-amber-500" />
+                <span>Editar datos</span>
+              </button>
+            )}
+            {canDownloadPdf && (
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isDownloading}
+                className="px-3.5 py-2.5 bg-[var(--red)] hover:bg-[var(--red-hover)] text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition-all shrink-0"
+              >
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Descargar</span> PDF
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -273,6 +287,19 @@ export function PlayerFichaView({
           </button>
         </div>
       )}
+
+      {/* Modal de edición de datos */}
+      <EditPlayerModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        player={player}
+        team={team}
+        onSaved={onRefresh}
+        onDeleted={() => {
+          onRefresh();
+          onBack();
+        }}
+      />
     </div>
   );
 }

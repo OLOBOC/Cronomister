@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { Player, Team, UserProfile, Match, AttendanceRecord } from '@/types';
-import { Plus, Upload, User, Trash2, ChevronRight, Search } from 'lucide-react';
+import { Plus, Upload, User, Trash2, ChevronRight, Search, Pencil } from 'lucide-react';
 import { AddPlayerModal } from './AddPlayerModal';
 import { CsvImportModal } from './CsvImportModal';
+import { EditPlayerModal } from './EditPlayerModal';
 import { deletePlayer } from '@/lib/storage';
 import { calculatePlayerKPIs } from '@/lib/minuteEngine';
 
@@ -29,6 +30,7 @@ export function RosterView({
 }: RosterViewProps) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [playerToEdit, setPlayerToEdit] = useState<Player | null>(null);
   const [search, setSearch] = useState('');
   const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
 
@@ -157,20 +159,33 @@ export function RosterView({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 shrink-0">
                   {isAdmin && (
-                    <button
-                      onClick={(e) => handleDelete(e, player.id)}
-                      className={`p-2 rounded-lg text-xs font-bold transition-colors ${
-                        isPendingDelete
-                          ? 'bg-rose-600 text-white animate-pulse'
-                          : 'text-[var(--mute)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                      }`}
-                      title={isPendingDelete ? 'Toca de nuevo para confirmar eliminación' : 'Eliminar jugador'}
-                      aria-label="Eliminar jugador"
-                    >
-                      {isPendingDelete ? 'Confirmar' : <Trash2 className="w-4 h-4" />}
-                    </button>
+                    <>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPlayerToEdit(player);
+                        }}
+                        className="p-2 rounded-lg text-xs font-bold text-[var(--mute)] hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                        title="Editar datos del jugador"
+                        aria-label="Editar jugador"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, player.id)}
+                        className={`p-2 rounded-lg text-xs font-bold transition-colors ${
+                          isPendingDelete
+                            ? 'bg-rose-600 text-white animate-pulse'
+                            : 'text-[var(--mute)] hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                        }`}
+                        title={isPendingDelete ? 'Toca de nuevo para confirmar eliminación' : 'Eliminar jugador'}
+                        aria-label="Eliminar jugador"
+                      >
+                        {isPendingDelete ? 'Confirmar' : <Trash2 className="w-4 h-4" />}
+                      </button>
+                    </>
                   )}
                   <ChevronRight className="w-4 h-4 text-[var(--mute)]" />
                 </div>
@@ -193,6 +208,22 @@ export function RosterView({
         team={team}
         onImportComplete={onRefresh}
       />
+      {playerToEdit && (
+        <EditPlayerModal
+          isOpen={Boolean(playerToEdit)}
+          onClose={() => setPlayerToEdit(null)}
+          player={playerToEdit}
+          team={team}
+          onSaved={() => {
+            onRefresh();
+            setPlayerToEdit(null);
+          }}
+          onDeleted={() => {
+            onRefresh();
+            setPlayerToEdit(null);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -89,42 +89,60 @@ export default function Home() {
     setIsLoggedIn(authStatus);
     syncDataFromStore();
 
-    if (authStatus) {
-      syncSharedDataFromCloud()
-        .then(() => syncDataFromStore())
-        .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
-      syncCurrentUserPermissions()
-        .then(() => syncDataFromStore())
-        .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
-    }
-
     const unsubscribe = subscribeToStore(() => {
       syncDataFromStore();
     });
 
-    const dataRefreshInterval = authStatus
-      ? window.setInterval(() => {
-          if (document.visibilityState !== 'visible') return;
-          syncAttendanceFromCloud()
-            .then(() => syncDataFromStore())
-            .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
-        }, 10000)
-      : null;
-    const permissionRefreshInterval = authStatus
-      ? window.setInterval(() => {
-          if (document.visibilityState !== 'visible') return;
-          syncCurrentUserPermissions()
-            .then(() => syncDataFromStore())
-            .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
-        }, 60000)
-      : null;
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    // Sincronización inmediata al estar autenticado
+    syncSharedDataFromCloud()
+      .then(() => syncDataFromStore())
+      .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+    syncCurrentUserPermissions()
+      .then(() => syncDataFromStore())
+      .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+
+    // Polling rápido cada 3.5 segundos mientras la ventana esté visible
+    const dataRefreshInterval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      syncAttendanceFromCloud()
+        .then(() => syncDataFromStore())
+        .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+    }, 3500);
+
+    const permissionRefreshInterval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      syncCurrentUserPermissions()
+        .then(() => syncDataFromStore())
+        .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+    }, 45000);
+
+    // Sincronización instantánea al volver a la pestaña, ventana o recuperar conexión
+    const handleImmediateSync = () => {
+      if (document.visibilityState === 'visible') {
+        syncSharedDataFromCloud()
+          .then(() => syncDataFromStore())
+          .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
+      }
+    };
+
+    window.addEventListener('focus', handleImmediateSync);
+    document.addEventListener('visibilitychange', handleImmediateSync);
+    window.addEventListener('online', handleImmediateSync);
 
     return () => {
-      unsubscribe();
-      if (dataRefreshInterval !== null) window.clearInterval(dataRefreshInterval);
-      if (permissionRefreshInterval !== null) window.clearInterval(permissionRefreshInterval);
+      window.clearInterval(dataRefreshInterval);
+      window.clearInterval(permissionRefreshInterval);
+      window.removeEventListener('focus', handleImmediateSync);
+      document.removeEventListener('visibilitychange', handleImmediateSync);
+      window.removeEventListener('online', handleImmediateSync);
     };
-  }, []);
+  }, [isLoggedIn]);
 
   const handleLoginSuccess = (user: UserProfile) => {
     setCurrentUserState(user);

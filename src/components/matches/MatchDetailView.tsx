@@ -9,8 +9,10 @@ import {
   Calendar,
   MessageSquare,
   Clock,
+  Settings2,
 } from 'lucide-react';
 import { ManualMinutesModal } from './ManualMinutesModal';
+import { EditMatchModal } from './EditMatchModal';
 import { updateMatch } from '@/lib/storage';
 import { MINUTES_SOURCE_LABELS } from '@/lib/terminology';
 
@@ -33,6 +35,7 @@ export function MatchDetailView({
   onRefresh,
 }: Omit<MatchDetailViewProps, 'currentUser'>) {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [generalNote, setGeneralNote] = useState(match.generalNote || '');
 
   const totalDuration = team.settings.halfDurationMinutes * 2;
@@ -92,14 +95,23 @@ export function MatchDetailView({
             </p>
           </div>
 
-          {match.scoreMareo !== undefined && match.scoreRival !== undefined && (
-            <div className="text-right">
-              <span className="text-2xl font-black text-[var(--ink)]">
-                {match.scoreMareo} – {match.scoreRival}
-              </span>
-              <span className="block text-[10px] text-[var(--mute)] uppercase font-bold">Resultado</span>
-            </div>
-          )}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            {match.scoreMareo !== undefined && match.scoreRival !== undefined && (
+              <div className="text-right">
+                <span className="text-2xl font-black text-[var(--ink)]">
+                  {match.scoreMareo} – {match.scoreRival}
+                </span>
+                <span className="block text-[10px] text-[var(--mute)] uppercase font-bold">Resultado</span>
+              </div>
+            )}
+            <button
+              onClick={() => setIsEditModalOpen(true)}
+              className="px-2.5 py-1.5 rounded-xl border border-[var(--line)] bg-[var(--bg)] hover:border-[var(--mute)] text-[var(--ink)] text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Settings2 className="w-3.5 h-3.5 text-[var(--mute)]" />
+              <span>Modificar partido</span>
+            </button>
+          </div>
         </div>
 
         {/* Botones de Acción */}
@@ -208,6 +220,19 @@ export function MatchDetailView({
         team={team}
         players={players}
         onSaved={onRefresh}
+      />
+
+      {/* Modal de edición completa de partido */}
+      <EditMatchModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        match={match}
+        team={team}
+        onSaved={onRefresh}
+        onDeleted={() => {
+          onRefresh();
+          onBack();
+        }}
       />
     </div>
   );
