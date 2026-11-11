@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { Player, Team, UserProfile, Match, AttendanceRecord } from '@/types';
@@ -139,6 +139,16 @@ export function RosterView({
                       <span className="font-bold text-sm tracking-tight truncate">
                         {player.fullName}
                       </span>
+                      {player.note && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                          {player.note}
+                        </span>
+                      )}
+                      {player.linkedPlayerId && !player.note && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                          {team.id === 'team-deba' ? 'Pre C' : 'Debutantes A'}
+                        </span>
+                      )}
                       {team.settings.showPositions && player.position && (
                         <span className="text-[11px] font-semibold text-[var(--mute)] bg-[var(--bg)] px-2 py-0.5 rounded-full border border-[var(--line)]">
                           {player.position}

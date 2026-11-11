@@ -149,7 +149,7 @@ export function TrainingView({ team, players }: TrainingViewProps) {
   };
 
   // Contadores de la sesión activa
-  const sessionAttendance = attendanceList.filter((a) => a.sessionId === selectedDate);
+  const sessionAttendance = attendanceList.filter((a) => a.sessionId === selectedDate || a.sessionId.endsWith(selectedDate));
   const countAttended = sessionAttendance.filter((a) => a.status === 'S').length;
   const countExcused = sessionAttendance.filter((a) => a.status === 'A').length;
   const countUnexcused = sessionAttendance.filter((a) => a.status === 'N').length;
@@ -281,7 +281,19 @@ export function TrainingView({ team, players }: TrainingViewProps) {
                     {player.dorsal !== null ? player.dorsal : '—'}
                   </span>
                   <div className="min-w-0">
-                    <span className="font-bold text-sm block truncate">{player.fullName}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-sm truncate">{player.fullName}</span>
+                      {player.note && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                          {player.note}
+                        </span>
+                      )}
+                      {player.linkedPlayerId && !player.note && (
+                        <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                          {team.id === 'team-deba' ? 'Pre C' : 'Debutantes A'}
+                        </span>
+                      )}
+                    </div>
                     {team.settings.showPositions && player.position && (
                       <span className="text-[11px] text-[var(--mute)]">{player.position}</span>
                     )}

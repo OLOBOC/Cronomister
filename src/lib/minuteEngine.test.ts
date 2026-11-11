@@ -1,6 +1,6 @@
-import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { calculateMinutesFromEvents, calculatePlayerKPIs } from './minuteEngine';
-import { MatchEvent } from '@/types';
+import { MatchEvent, MatchPlayerRecord } from '@/types';
 
 describe('Minute Engine - Event Based Calculation', () => {
   it('cumple la prueba obligatoria: titular sale al min 8, entra otro, a los 5 min vuelve a entrar el titular', () => {
@@ -216,5 +216,152 @@ describe('Minute Engine - Event Based Calculation', () => {
     expect(aitor.totalMinutes).toBe(109);
     expect(aitor.averageMinutesPerMatch).toBe(27.25);
     expect(otherPlayer.matchesTotal).toBe(0);
+  });
+
+  it('Debutantes A: las asistencias cuentan estrictamente a partir de 2026-11-12 y partidos a partir de 2026-11-13', () => {
+    const nicolasId = 'p-da-nicolas';
+    const attendance = [
+      // Sesión de octubre (antes de fecha inicio): NO debe computar
+      { playerId: nicolasId, sessionId: 'deba-2026-10-15', status: 'S' as const },
+      // Sesión del 10 de noviembre: NO debe computar
+      { playerId: nicolasId, sessionId: 'deba-2026-11-10', status: 'A' as const },
+      // Sesión del jueves 12 de noviembre (mañana): SÍ computa
+      { playerId: nicolasId, sessionId: 'deba-2026-11-12', status: 'S' as const },
+      // Sesión del martes 17 de noviembre: SÍ computa
+      { playerId: nicolasId, sessionId: 'deba-2026-11-17', status: 'A' as const },
+    ];
+
+    const matches = [
+      // Partido anterior ficticio: NO computa
+      {
+        id: 'm-deba-pre',
+        date: '2026-11-06',
+        teamId: 'team-deba',
+        isFinished: true,
+        records: {
+          [nicolasId]: { playerId: nicolasId, status: 'J' as const, isStarter: true, minutes: 25, source: 'manual' as const },
+        },
+      },
+      // Partido del viernes 13 de noviembre (J1 oficial): SÍ computa
+      {
+        id: 'm-deba-1',
+        date: '2026-11-13',
+        teamId: 'team-deba',
+        isFinished: true,
+        records: {
+          [nicolasId]: { playerId: nicolasId, status: 'J' as const, isStarter: true, minutes: 20, source: 'manual' as const },
+        },
+      },
+    ];
+
+    const kpis = calculatePlayerKPIs(nicolasId, matches, attendance, 50);
+
+    // Solo 2 entrenos posteriores o iguales al 12/11/2026
+    expect(kpis.attendanceCount.totalSessions).toBe(2);
+    expect(kpis.attendanceCount.attended).toBe(1);
+    expect(kpis.attendanceCount.excused).toBe(1);
+    expect(kpis.attendancePercent).toBe(0.5);
+
+    // Solo el partido del 13/11/2026
+    expect(kpis.matchesTotal).toBe(1);
+    expect(kpis.matchesAttended).toBe(1);
+    expect(kpis.totalMinutes).toBe(20);
+  });
+
+  it('jugador de doble equipo (Pre C y Debutantes A): las faltas NO cuentan por dos en el mismo día', () => {
+    // Martín Álvarez: p-4 en Pre C y p-da-martin-alvarez en Debutantes A
+    const martinPrecId = 'p-4';
+    const martinDebaId = 'p-da-martin-alvarez';
+
+    // Caso 1: En la misma fecha (2026-11-12), entrena con Pre C ('S') pero en Debutantes A no está ('N').
+    // Debe computar como ASISTIÓ ('S'), 0 faltas.
+    const attCaso1 = [
+      { playerId: martinPrecId, sessionId: 'prec-2026-11-12', status: 'S' as const },
+      { playerId: martinDebaId, sessionId: 'deba-2026-11-12', status: 'N' as const },
+    ];
+    const kpisCaso1 = calculatePlayerKPIs(martinDebaId, [], attCaso1, 50);
+    expect(kpisCaso1.attendanceCount.totalSessions).toBe(1);
+    expect(kpisCaso1.attendanceCount.attended).toBe(1);
+    expect(kpisCaso1.attendanceCount.unexcused).toBe(0);
+    expect(kpisCaso1.attendanceCount.excused).toBe(0);
+
+    // Caso 2: Falta justificada en ambos equipos el mismo día (2026-11-12).
+    // NO debe contar como 2 faltas, sino como 1 sola falta avisada.
+    const attCaso2 = [
+      { playerId: martinPrecId, sessionId: 'prec-2026-11-12', status: 'A' as const },
+      { playerId: martinDebaId, sessionId: 'deba-2026-11-12', status: 'A' as const },
+    ];
+    const kpisCaso2 = calculatePlayerKPIs(martinPrecId, [], attCaso2, 50);
+    expect(kpisCaso2.attendanceCount.totalSessions).toBe(1);
+    expect(kpisCaso2.attendanceCount.attended).toBe(0);
+    expect(kpisCaso2.attendanceCount.excused).toBe(1);
+    expect(kpisCaso2.attendanceCount.unexcused).toBe(0);
+
+    // Caso 3: En un equipo avisa ('A') y en otro no avisa ('N') el mismo día (2026-11-12).
+    // Cuenta como 1 falta avisada ('A'), nunca 2 faltas.
+    const attCaso3 = [
+      { playerId: martinPrecId, sessionId: 'prec-2026-11-12', status: 'A' as const },
+      { playerId: martinDebaId, sessionId: 'deba-2026-11-12', status: 'N' as const },
+    ];
+    const kpisCaso3 = calculatePlayerKPIs(martinDebaId, [], attCaso3, 50);
+    expect(kpisCaso3.attendanceCount.totalSessions).toBe(1);
+    expect(kpisCaso3.attendanceCount.excused).toBe(1);
+    expect(kpisCaso3.attendanceCount.unexcused).toBe(0);
+
+    // Caso 4: En dos fechas distintas (12/11 y 17/11)
+    // 12/11: Falta avisada en ambos -> 1 falta avisada
+    // 17/11: Asistió en Pre C ('S') y 'N' en Debutantes -> Asistió
+    const attCaso4 = [
+      { playerId: martinPrecId, sessionId: 'prec-2026-11-12', status: 'A' as const },
+      { playerId: martinDebaId, sessionId: 'deba-2026-11-12', status: 'A' as const },
+      { playerId: martinPrecId, sessionId: 'prec-2026-11-17', status: 'S' as const },
+      { playerId: martinDebaId, sessionId: 'deba-2026-11-17', status: 'N' as const },
+    ];
+    const kpisCaso4 = calculatePlayerKPIs(martinPrecId, [], attCaso4, 50);
+    expect(kpisCaso4.attendanceCount.totalSessions).toBe(2);
+    expect(kpisCaso4.attendanceCount.attended).toBe(1);
+    expect(kpisCaso4.attendanceCount.excused).toBe(1);
+    expect(kpisCaso4.attendanceCount.unexcused).toBe(0);
+    expect(kpisCaso4.attendancePercent).toBe(0.5);
+  });
+
+  it('jugador de doble equipo: acumula minutos de partidos jugados con ambos equipos', () => {
+    const martinPrecId = 'p-4';
+    const martinDebaId = 'p-da-martin-alvarez';
+
+    const matches: Array<{
+      id: string;
+      date: string;
+      teamId: string;
+      isFinished: boolean;
+      records: Record<string, MatchPlayerRecord>;
+    }> = [
+      // Viernes 13/11: Convocado con Debutantes A (J1)
+      {
+        id: 'm-deba-1',
+        date: '2026-11-13',
+        teamId: 'team-deba',
+        isFinished: true,
+        records: {
+          [martinDebaId]: { playerId: martinDebaId, status: 'J', isStarter: true, minutes: 20, source: 'manual' },
+        },
+      },
+      // Sábado 14/11: Convocado con Pre C (J7 Codema)
+      {
+        id: 'm-prec-7',
+        date: '2026-11-14',
+        teamId: 'team-prec',
+        isFinished: true,
+        records: {
+          [martinPrecId]: { playerId: martinPrecId, status: 'J', isStarter: false, minutes: 25, source: 'manual' },
+        },
+      },
+    ];
+
+    const kpis = calculatePlayerKPIs(martinDebaId, matches, [], 50);
+    expect(kpis.matchesTotal).toBe(2);
+    expect(kpis.matchesAttended).toBe(2);
+    expect(kpis.matchesAsStarter).toBe(1);
+    expect(kpis.totalMinutes).toBe(45); // 20 + 25 = 45 min
   });
 });

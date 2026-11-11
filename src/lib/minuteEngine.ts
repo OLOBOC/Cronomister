@@ -1,5 +1,5 @@
-import { MatchEvent, MatchPlayerRecord } from '@/types';
-import { isAttendanceIncludedInStats, isMatchIncludedInMinuteStats } from './statsPolicy';
+﻿import { MatchEvent, MatchPlayerRecord } from '@/types';
+import { isAttendanceIncludedInStats, isMatchIncludedInMinuteStats, getLinkedPlayerId } from './statsPolicy';
 
 export interface PlayerInterval {
   playerId: string;
@@ -153,16 +153,24 @@ export function calculatePlayerKPIs(
   attendance: Array<{ playerId: string; sessionId?: string; status: 'S' | 'A' | 'N' }>,
   matchDurationMinutes: number
 ) {
-  // Partidos en los que fue convocado / con registro
-  const relevantMatches = matches.filter((match) => isMatchIncludedInMinuteStats(match, playerId)).filter(
-    (m) => m.records[playerId] && (m.records[playerId].status === 'J' || m.records[playerId].status === 'X')
-  );
+  const linkedId = getLinkedPlayerId(playerId);
 
-  const playedMatches = relevantMatches.filter((m) => m.records[playerId]?.status === 'J');
-  const starterMatches = playedMatches.filter((m) => m.records[playerId]?.isStarter);
+  // Partidos en los que fue convocado / con registro (soporta jugadores con doble equipo)
+  const getPlayerRecord = (m: { records: Record<string, MatchPlayerRecord> }) =>
+    m.records[playerId] || (linkedId ? m.records[linkedId] : undefined);
+
+  const relevantMatches = matches
+    .filter((match) => isMatchIncludedInMinuteStats(match, playerId))
+    .filter((m) => {
+      const rec = getPlayerRecord(m);
+      return rec && (rec.status === 'J' || rec.status === 'X');
+    });
+
+  const playedMatches = relevantMatches.filter((m) => getPlayerRecord(m)?.status === 'J');
+  const starterMatches = playedMatches.filter((m) => getPlayerRecord(m)?.isStarter);
 
   const totalMinutes = playedMatches.reduce(
-    (acc, m) => acc + (m.records[playerId]?.minutes || 0),
+    (acc, m) => acc + (getPlayerRecord(m)?.minutes || 0),
     0
   );
 
@@ -173,13 +181,33 @@ export function calculatePlayerKPIs(
       ? totalMinutes / (countPlayed * matchDurationMinutes)
       : 0;
 
-  // Asistencia a entrenos (solo sobre sesiones registradas)
+  // Asistencia a entrenos (solo sobre sesiones registradas):
+  // Agrupación por fecha de sesión para jugadores en doble equipo (evita que las faltas cuenten por dos)
+  const targetPlayerIds = new Set(linkedId ? [playerId, linkedId] : [playerId]);
   const statisticalAttendance = attendance.filter((record) => (
-    record.playerId === playerId && isAttendanceIncludedInStats(record)
+    targetPlayerIds.has(record.playerId) && isAttendanceIncludedInStats(record)
   ));
-  const attended = statisticalAttendance.filter((a) => a.status === 'S').length;
-  const excused = statisticalAttendance.filter((a) => a.status === 'A').length;
-  const unexcused = statisticalAttendance.filter((a) => a.status === 'N').length;
+
+  // Deduplicación por fecha de sesión:
+  // Si en una fecha el jugador asistió ('S') en cualquiera de las sesiones -> cuenta como 'S' (asistió)
+  // Si en una fecha no asistió, solo cuenta como 1 falta (avisada 'A' si avisó en alguna, o sin avisar 'N')
+  const statusByDate = new Map<string, 'S' | 'A' | 'N'>();
+  for (const record of statisticalAttendance) {
+    const date = record.sessionId?.match(/\d{4}-\d{2}-\d{2}$/)?.[0] || record.sessionId || 'unknown';
+    const current = statusByDate.get(date);
+    if (!current) {
+      statusByDate.set(date, record.status);
+    } else if (record.status === 'S') {
+      statusByDate.set(date, 'S'); // 'S' prima: si entrenó en uno de sus equipos, asistió
+    } else if (current === 'N' && record.status === 'A') {
+      statusByDate.set(date, 'A'); // Si avisó en alguno, computa como falta avisada
+    }
+  }
+
+  const dedupedStatuses = Array.from(statusByDate.values());
+  const attended = dedupedStatuses.filter((a) => a === 'S').length;
+  const excused = dedupedStatuses.filter((a) => a === 'A').length;
+  const unexcused = dedupedStatuses.filter((a) => a === 'N').length;
   const totalSessions = attended + excused + unexcused;
 
   const attendancePercent = totalSessions > 0 ? attended / totalSessions : 0;

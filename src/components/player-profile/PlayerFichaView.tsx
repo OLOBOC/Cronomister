@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { Player, Team, Match, TrainingSession, AttendanceRecord, AppNote, UserProfile } from '@/types';
@@ -49,7 +49,9 @@ export function PlayerFichaView({
   const canDownloadPdf = hasPermission(currentUser, team.id, 'download_pdf');
   const totalMatchDuration = team.settings.halfDurationMinutes * 2;
 
-  const playerAttendance = attendance.filter((a) => a.playerId === player.id);
+  const playerAttendance = attendance.filter(
+    (a) => a.playerId === player.id || (player.linkedPlayerId && a.playerId === player.linkedPlayerId)
+  );
   const kpis = calculatePlayerKPIs(
     player.id,
     matches.map((m) => ({ id: m.id, date: m.date, records: m.records, isFinished: m.status === 'finished' })),
@@ -108,7 +110,19 @@ export function PlayerFichaView({
               {player.dorsal !== null ? player.dorsal : '—'}
             </div>
             <div>
-              <h2 className="text-xl font-black tracking-tight">{player.fullName}</h2>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-xl font-black tracking-tight">{player.fullName}</h2>
+                {player.note && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300">
+                    {player.note}
+                  </span>
+                )}
+                {player.linkedPlayerId && !player.note && (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                    {team.id === 'team-deba' ? 'Pre C' : 'Debutantes A'}
+                  </span>
+                )}
+              </div>
               <div className="flex items-center gap-2 mt-0.5 text-xs text-[var(--mute)]">
                 {team.settings.showPositions && player.position && (
                   <span className="font-bold text-[var(--ink)] bg-[var(--bg)] px-2 py-0.5 rounded-full border border-[var(--line)]">
@@ -116,6 +130,9 @@ export function PlayerFichaView({
                   </span>
                 )}
                 <span>Categoría {team.name}</span>
+                {player.linkedPlayerId && (
+                  <span>· Compite en Pre C y Debutantes A</span>
+                )}
               </div>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { Team, Player, Match, TrainingSession, AttendanceRecord, UserProfile, MatchPlayerRecord } from '@/types';
+﻿import { Team, Player, Match, TrainingSession, AttendanceRecord, UserProfile, MatchPlayerRecord } from '@/types';
 
 export const SEED_USERS: UserProfile[] = [
   {
@@ -123,8 +123,8 @@ export function getInitialSeedData() {
   const playersPrec: Player[] = [
     { id: 'p-1', teamId: 'team-prec', dorsal: 1, firstName: 'Unai', fullName: 'Unai Robledo Sanchez', position: 'PT', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
     { id: 'p-2', teamId: 'team-prec', dorsal: 2, firstName: 'Mario', fullName: 'Mario Berdasco Amandi', position: 'Cierre', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-3', teamId: 'team-prec', dorsal: 3, firstName: 'Jose', fullName: 'Jose Diaz Diaz', position: 'Ala', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-4', teamId: 'team-prec', dorsal: 4, firstName: 'Martín', fullName: 'Martin Alvarez Menendez', position: 'Ala', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-3', teamId: 'team-prec', dorsal: 3, firstName: 'Jose', fullName: 'Jose Diaz Diaz', position: 'Ala', linkedPlayerId: 'p-da-jose-diaz', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-4', teamId: 'team-prec', dorsal: 4, firstName: 'Martín', fullName: 'Martin Alvarez Menendez', position: 'Ala', linkedPlayerId: 'p-da-martin-alvarez', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
     { id: 'p-5', teamId: 'team-prec', dorsal: 5, firstName: 'Gonzalo', fullName: 'Gonzalo Palmero Garcia', position: 'Ala', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
     { id: 'p-6', teamId: 'team-prec', dorsal: 6, firstName: 'Gino', fullName: 'Gino Onis Fonseca', position: 'Pívot', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
     { id: 'p-7', teamId: 'team-prec', dorsal: 7, firstName: 'Salvador', fullName: 'Salvador Milano', position: 'Pívot', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
@@ -136,14 +136,15 @@ export function getInitialSeedData() {
 
   // Plantilla oficial Debutantes A (Nacidos 2021)
   const playersDebuA: Player[] = [
-    { id: 'p-da-1', teamId: 'team-deba', dorsal: 1, firstName: 'Mateo', fullName: 'Mateo Fernández', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-da-2', teamId: 'team-deba', dorsal: 2, firstName: 'Lucas', fullName: 'Lucas García', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-da-3', teamId: 'team-deba', dorsal: 3, firstName: 'Leo', fullName: 'Leo Rodríguez', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-da-4', teamId: 'team-deba', dorsal: 4, firstName: 'Hugo', fullName: 'Hugo López', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-da-5', teamId: 'team-deba', dorsal: 5, firstName: 'Enzo', fullName: 'Enzo Martínez', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-da-6', teamId: 'team-deba', dorsal: 6, firstName: 'Martín', fullName: 'Martín Sánchez', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-da-7', teamId: 'team-deba', dorsal: 7, firstName: 'Daniel', fullName: 'Daniel Pérez', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
-    { id: 'p-da-8', teamId: 'team-deba', dorsal: 8, firstName: 'Álex', fullName: 'Álex González', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-nicolas', teamId: 'team-deba', dorsal: null, firstName: 'Nicolás', fullName: 'Nicolás Abella Rodríguez', note: '4 años', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-martin-alvarez', teamId: 'team-deba', dorsal: null, firstName: 'Martín', fullName: 'Martín Álvarez Menéndez', note: 'Pre C', linkedPlayerId: 'p-4', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-jose-diaz', teamId: 'team-deba', dorsal: null, firstName: 'José', fullName: 'José Díaz Díaz (Pepe)', note: 'Pre C', linkedPlayerId: 'p-3', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-manuel-asensio', teamId: 'team-deba', dorsal: null, firstName: 'Manuel', fullName: 'Manuel Asensio Huete', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-martin-diaz', teamId: 'team-deba', dorsal: null, firstName: 'Martín', fullName: 'Martín Díaz Rodríguez', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-alonso-france', teamId: 'team-deba', dorsal: null, firstName: 'Alonso', fullName: 'Alonso Jorge France González', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-jorge', teamId: 'team-deba', dorsal: null, firstName: 'Jorge', fullName: 'Jorge', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-daniel-martinez', teamId: 'team-deba', dorsal: null, firstName: 'Daniel', fullName: 'Daniel Martínez Swida', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
+    { id: 'p-da-ander-vazquez', teamId: 'team-deba', dorsal: null, firstName: 'Ander', fullName: 'Ander Vázquez Fernández', isActive: true, createdAt: '2026-09-01T00:00:00Z' },
   ];
 
   const players: Player[] = [...playersPrec, ...playersDebuA];

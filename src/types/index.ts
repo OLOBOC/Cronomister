@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'delegate';
+﻿export type UserRole = 'admin' | 'delegate';
 export type UserStatus = 'active' | 'invited' | 'disabled';
 
 export type PermissionKey =
@@ -60,6 +60,8 @@ export interface Player {
   position?: string;
   isActive: boolean;
   createdAt: string;
+  linkedPlayerId?: string; // ID del jugador en otro equipo si compite en ambos (ej. Pre C y Debutantes A)
+  note?: string; // Anotación identificativa (ej. "4 años", "Pepe")
 }
 
 // Estados de asistencia a entrenamientos

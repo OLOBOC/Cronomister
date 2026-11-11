@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import {
   Team,
@@ -17,6 +17,7 @@ import {
 import { getInitialSeedData, SEED_USERS } from './seed';
 import { assertPermission, DEFAULT_DELEGATE_PERMISSIONS } from './permissions';
 import { filterAttendanceForTeam } from './attendance';
+import { getLinkedPlayerId } from './statsPolicy';
 import { supabase } from './supabase';
 
 const STORAGE_KEYS = {
@@ -303,7 +304,7 @@ function setToStorage<T>(key: string, value: T): void {
 export function initStore() {
   if (typeof window === 'undefined') return;
 
-  const STORE_VERSION = 'cronomister_v6_delegate_alvaro';
+  const STORE_VERSION = 'cronomister_v7_debutantes_a';
   const currentVersion = localStorage.getItem('cronomister_store_version');
 
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
@@ -335,9 +336,9 @@ export function initStore() {
       // No iniciar sesión automáticamente por defecto en nuevos dispositivos para proteger el acceso de Admin
       localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
     } else {
-      // Actualización a v6: limpiar asistencias y sincronizar usuarios autorizados (ej. Álvaro)
-      localStorage.setItem(STORAGE_KEYS.ATTENDANCE, JSON.stringify([]));
-      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER_ID);
+      // Actualización a v7: actualizar plantilla oficial de Debutantes A (9 jugadores)
+      // y vincular los jugadores dobles con Pre C (Martín Álvarez y José Díaz "Pepe").
+      // Las asistencias reales pasadas por el cuerpo técnico se preservan estrictamente intactas.
 
       const prevUsers = getFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, []);
       SEED_USERS.forEach((su) => {
@@ -345,13 +346,12 @@ export function initStore() {
         if (idx === -1) {
           prevUsers.push(su);
         } else {
-          // Asegurar contraseña y datos activos
           prevUsers[idx] = { ...su, ...prevUsers[idx], status: 'active', password: prevUsers[idx].password || su.password };
         }
       });
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(prevUsers));
 
-      // Sincronizar los calendarios de Pre C y Debutantes A y plantillas
+      // Sincronizar plantillas: actualizar Debutantes A a la lista real oficial
       const prevMatches = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
       const prevPlayers = getFromStorage<Player[]>(STORAGE_KEYS.PLAYERS, []);
       const prevTeams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
@@ -361,7 +361,6 @@ export function initStore() {
       prevMatches.forEach((pm) => {
         const seedIndex = mergedMatches.findIndex((m) => m.id === pm.id);
         if (seedIndex !== -1) {
-          // Si el usuario ya tenía actas o minutos jugados en este partido, conservarlos (excepto semillas Pre C J1-J6 normalizadas)
           const isPrecOldSeed = pm.id.startsWith('m-prec-') && Number(pm.id.replace('m-prec-', '')) <= 6;
           if (!isPrecOldSeed && Object.keys(pm.records || {}).length > 0) {
             mergedMatches[seedIndex].records = pm.records;
@@ -370,18 +369,22 @@ export function initStore() {
             mergedMatches[seedIndex].scoreRival = pm.scoreRival;
           }
         } else if (!pm.id.startsWith('m-prec-') && !pm.id.startsWith('m-deba-')) {
-          // Partidos manuales creados por el usuario
           mergedMatches.push(pm);
         }
       });
 
-      // Asegurar que Debutantes A tenga jugadores y esté marcado configurado
-      const mergedPlayers = [...prevPlayers];
-      seed.players.forEach((sp) => {
-        if (!mergedPlayers.some((p) => p.id === sp.id)) {
-          mergedPlayers.push(sp);
-        }
-      });
+      // Conservar jugadores existentes de otros equipos (ej. Pre C) y actualizar linkedPlayerId
+      const nonDebuAPlayers = prevPlayers
+        .filter((p) => p.teamId !== 'team-deba')
+        .map((p) => {
+          if (p.id === 'p-3') return { ...p, linkedPlayerId: 'p-da-jose-diaz' };
+          if (p.id === 'p-4') return { ...p, linkedPlayerId: 'p-da-martin-alvarez' };
+          return p;
+        });
+
+      // Tomar los 9 jugadores oficiales de Debutantes A desde seed
+      const debuAPlayers = seed.players.filter((p) => p.teamId === 'team-deba');
+      const mergedPlayers = [...nonDebuAPlayers, ...debuAPlayers];
 
       const mergedTeams = seed.teams.map((st) => {
         const existing = prevTeams.find((pt) => pt.id === st.id);
@@ -391,6 +394,9 @@ export function initStore() {
       localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(mergedMatches));
       localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(mergedPlayers));
       localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(mergedTeams));
+
+      // Sincronizar plantilla de Debutantes A con Supabase
+      scheduleCloudSync(STORAGE_KEYS.PLAYERS);
     }
 
     localStorage.setItem('cronomister_store_version', STORE_VERSION);
@@ -1107,6 +1113,48 @@ export function setAttendanceRecord(
       note: note || '',
       updatedAt: new Date().toISOString(),
     });
+  }
+
+  // Sincronización automática para jugadores con doble equipo (ej. Pre C y Debutantes A)
+  // Garantiza que la asistencia se refleje en ambos equipos y que las faltas no cuenten por dos
+  const linkedId = getLinkedPlayerId(playerId);
+  if (linkedId) {
+    const sessionDate = sessionId.match(/\d{4}-\d{2}-\d{2}$/)?.[0] || sessionId;
+    const allSessions = getFromStorage<TrainingSession[]>(STORAGE_KEYS.SESSIONS, []);
+    const linkedPlayer = getPlayerById(linkedId);
+    if (linkedPlayer) {
+      const otherSession = allSessions.find(
+        (s) => s.teamId === linkedPlayer.teamId && (s.date === sessionDate || s.id === sessionDate || s.id.endsWith(sessionDate))
+      );
+      const otherSessionId = otherSession ? otherSession.id : sessionDate;
+
+      const otherIdx = all.findIndex(
+        (a) => (a.sessionId === otherSessionId || a.sessionId.endsWith(sessionDate)) && a.playerId === linkedId
+      );
+
+      if (status === null && otherIdx !== -1) {
+        all[otherIdx].deletedAt = new Date().toISOString();
+        all[otherIdx].note = '';
+        all[otherIdx].reason = null;
+        all[otherIdx].updatedAt = all[otherIdx].deletedAt;
+      } else if (otherIdx !== -1 && status !== null) {
+        all[otherIdx].status = status;
+        delete all[otherIdx].deletedAt;
+        if (note !== undefined) all[otherIdx].note = note;
+        all[otherIdx].reason = status === 'S' ? null : (reason !== undefined ? reason : all[otherIdx].reason);
+        all[otherIdx].updatedAt = new Date().toISOString();
+      } else if (status !== null) {
+        all.push({
+          id: `att-${otherSessionId}-${linkedId}`,
+          sessionId: otherSessionId,
+          playerId: linkedId,
+          status,
+          reason: status === 'S' ? null : (reason ?? null),
+          note: note || '',
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }
   }
 
   setToStorage(STORAGE_KEYS.ATTENDANCE, all);

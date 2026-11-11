@@ -72,7 +72,9 @@ export function generatePlayerPdf({
   const CONTENT_W = PAGE_W - MARGIN * 2;
 
   const totalMatchDuration = team.settings.halfDurationMinutes * 2;
-  const playerAttendance = attendance.filter((a) => a.playerId === player.id);
+  const playerAttendance = attendance.filter(
+    (a) => a.playerId === player.id || (player.linkedPlayerId && a.playerId === player.linkedPlayerId)
+  );
   const kpis = calculatePlayerKPIs(
     player.id,
     matches.map((m) => ({
@@ -137,6 +139,8 @@ export function generatePlayerPdf({
 
   const metaItems: string[] = [];
   if (team.settings.showPositions && player.position) metaItems.push(`Puesto: ${player.position}`);
+  if (player.note) metaItems.push(player.note);
+  if (player.linkedPlayerId) metaItems.push('Doble equipo (Pre C · Debutantes A)');
   metaItems.push(`Equipo: ${team.name}`);
   metaItems.push(`Generado: ${todayStr}`);
 

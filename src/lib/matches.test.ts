@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+﻿import { describe, it, expect, beforeEach } from 'vitest';
 
 const storageMap = new Map<string, string>();
 const localStorageMock = {
@@ -26,6 +26,8 @@ import {
   updatePlayer,
   deletePlayer,
   setCurrentUser,
+  setAttendanceRecord,
+  getAttendance,
 } from './storage';
 
 describe('Gestión y edición de partidos y jugadores', () => {
@@ -107,5 +109,40 @@ describe('Gestión y edición de partidos y jugadores', () => {
     const finalPlayers = getPlayers('team-prec');
     expect(finalPlayers.find((p) => p.id === playerToDelete.id)).toBeUndefined();
     expect(finalPlayers.length).toBe(initialPlayers.length - 1);
+  });
+
+  it('inicializa la plantilla oficial de Debutantes A con los 9 jugadores solicitados', () => {
+    const debaPlayers = getPlayers('team-deba');
+    expect(debaPlayers.length).toBe(9);
+
+    const names = debaPlayers.map((p) => p.fullName);
+    expect(names).toContain('Nicolás Abella Rodríguez');
+    expect(names).toContain('Martín Álvarez Menéndez');
+    expect(names).toContain('José Díaz Díaz (Pepe)');
+    expect(names).toContain('Manuel Asensio Huete');
+    expect(names).toContain('Martín Díaz Rodríguez');
+    expect(names).toContain('Alonso Jorge France González');
+    expect(names).toContain('Jorge');
+    expect(names).toContain('Daniel Martínez Swida');
+    expect(names).toContain('Ander Vázquez Fernández');
+
+    // Verificar vinculación de jugadores dobles
+    const martin = debaPlayers.find((p) => p.id === 'p-da-martin-alvarez');
+    expect(martin?.linkedPlayerId).toBe('p-4');
+
+    const jose = debaPlayers.find((p) => p.id === 'p-da-jose-diaz');
+    expect(jose?.linkedPlayerId).toBe('p-3');
+  });
+
+  it('sincroniza automáticamente la asistencia de jugadores con doble equipo', () => {
+    // Pasar lista para Martín Álvarez en Pre C
+    const testDate = '2026-11-12';
+    setAttendanceRecord(`prec-${testDate}`, 'p-4', 'S');
+
+    // Verificar en Debutantes A para el jugador vinculado p-da-martin-alvarez
+    const debaAtt = getAttendance('team-deba');
+    const martinDebaRecord = debaAtt.find((a) => a.playerId === 'p-da-martin-alvarez');
+    expect(martinDebaRecord).toBeDefined();
+    expect(martinDebaRecord?.status).toBe('S');
   });
 });
