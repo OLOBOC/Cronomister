@@ -32,6 +32,7 @@ Esta guía paso a paso está pensada para que cualquier persona, sin necesidad d
    - `supabase/migrations/007_reset_jornada_7_codema_pending.sql`
    - `supabase/migrations/008_update_debutantes_a_players.sql`
    - `supabase/migrations/009_update_prec_codema_match.sql`
+   - `supabase/migrations/010_debutantes_20_minute_halves.sql`
 5. *¡Listo!* La migración 003 crea el almacenamiento compartido por equipo y copia roles y permisos existentes desde los metadatos de Supabase Auth a tablas protegidas. La 004 corrige los marcadores históricos de Pre C, la 005 carga el seguimiento confirmado de Aitor y Perchera, la 006 añade los 30 minutos de José Díaz Díaz, la 007 restablece la J7 a pendiente, la 008 actualiza la plantilla oficial de Debutantes A (9 jugadores) con su vinculación a Pre C y la 009 registra el resultado oficial (3-2) y minutaje de la J7 contra Codema "C".
 
 Si ya aplicaste las migraciones 001–003, ejecuta únicamente `supabase/migrations/004_correct_prec_match_results.sql` en una nueva consulta del SQL Editor para actualizar los marcadores que ya están guardados en la base de datos.
@@ -45,6 +46,8 @@ Si ya aplicaste hasta la 006, ejecuta `supabase/migrations/007_reset_jornada_7_c
 Si ya aplicaste hasta la 007, ejecuta `supabase/migrations/008_update_debutantes_a_players.sql` para actualizar la plantilla oficial de Debutantes A (9 jugadores) en Supabase.
 
 Si ya aplicaste hasta la 008, ejecuta únicamente `supabase/migrations/009_update_prec_codema_match.sql` para registrar el resultado final (3-2) y minutos de la Jornada 7 contra Codema "C".
+
+Si ya aplicaste hasta la 009, ejecuta únicamente `supabase/migrations/010_debutantes_20_minute_halves.sql` para establecer 20 minutos por parte en Debutantes A y B.
 
 ---
 

@@ -8,7 +8,7 @@ Herramienta web responsive (mobile-first y escritorio) instalable como PWA para 
 
 1. **Gestión Multiequipo con Aislamiento Estricto**:
    - Equipos: **Pre C**, **Debutantes B** y **Debutantes A**.
-   - Ajustes técnicos por equipo: número de jugadores en pista (def. 5), duración de las partes (def. 25 min), selector de días de entrenamiento (martes y jueves por defecto) y activación/desactivación de puestos en el campo.
+   - Ajustes técnicos por equipo: número de jugadores en pista (def. 5), duración de las partes (25 min en Pre C y 20 min en Debutantes), selector de días de entrenamiento (martes y jueves por defecto) y activación/desactivación de puestos en el campo.
    - Aviso visual automático si Debutantes B o A no han sido ajustados.
 
 2. **Roles de Acceso y Seguridad**:
@@ -101,7 +101,7 @@ La aplicación viene precargada de forma predeterminada con los datos no persona
   - Sesiones de entrenamiento de martes y jueves desde el 01/09/2026.
   - Asistencia histórica registrada para Salvador Milano y compañeros hasta el 05/11/2026.
 - **Equipos Debutantes B y Debutantes A**:
-  - Creados con configuración base (5 en pista, 25 min/parte, sin puestos) y aviso visual de configuración pendiente.
+  - Creados con configuración base (5 en pista, 20 min/parte, sin puestos) y aviso visual de configuración pendiente.
 - **Perfiles de Usuario para Simulación**:
   - `entrenador@mareo.es` (Admin, acceso a los 3 equipos).
   - `delegado@mareo.es` (Delegado, asignado a Pre C).
