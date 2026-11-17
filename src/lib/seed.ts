@@ -203,7 +203,7 @@ export function getInitialSeedData() {
     { round: 4, date: '2026-10-24', rival: 'Gijón Fútbol Femenino "A"', isHome: false, scoreMareo: 10, scoreRival: 0, status: 'finished', generalNote: 'Victoria 0-10 a domicilio.' },
     { round: 5, date: '2026-10-31', rival: 'C.D. Manuel Rubio "B"', isHome: true, scoreMareo: 6, scoreRival: 1, status: 'finished', generalNote: 'Victoria 6-1.' },
     { round: 6, date: '2026-11-07', rival: 'C.D. Gijón Perchera F.S. "A"', isHome: false, scoreMareo: 3, scoreRival: 0, status: 'finished', generalNote: 'Victoria a domicilio 0-3.' },
-    { round: 7, date: '2026-11-14', rival: 'Codema "C"', isHome: true, status: 'scheduled' },
+    { round: 7, date: '2026-11-14', rival: 'Codema "C"', isHome: true, scoreMareo: 3, scoreRival: 2, status: 'finished', generalNote: 'Victoria 3-2.' },
     { round: 8, date: '2026-11-21', rival: 'Asunción C.F. "C"', isHome: false, status: 'scheduled' },
     { round: 9, date: '2026-11-28', rival: 'Asunción C.F. "F"', isHome: true, status: 'scheduled' },
     { round: 10, date: '2026-12-05', rival: 'Cimadevilla C.F. "A"', isHome: false, status: 'scheduled' },
@@ -233,6 +233,31 @@ export function getInitialSeedData() {
   const matchesPrec: Match[] = rawPrecMatches.map((m) => {
     const matchId = `m-prec-${m.round}`;
     const records: Record<string, MatchPlayerRecord> = {};
+
+    if (m.round === 6) {
+      records['p-1'] = { playerId: 'p-1', status: 'J', isStarter: false, minutes: 50, source: 'manual' };
+      records['p-2'] = { playerId: 'p-2', status: 'J', isStarter: false, minutes: 50, source: 'manual' };
+      records['p-3'] = { playerId: 'p-3', status: 'J', isStarter: false, minutes: 30, source: 'manual' };
+      records['p-4'] = { playerId: 'p-4', status: 'J', isStarter: false, minutes: 30, source: 'manual' };
+      records['p-5'] = { playerId: 'p-5', status: 'J', isStarter: false, minutes: 24, source: 'manual' };
+      records['p-6'] = { playerId: 'p-6', status: 'J', isStarter: false, minutes: 48, source: 'manual' };
+      records['p-8'] = { playerId: 'p-8', status: 'X', isStarter: false, minutes: 0, source: 'manual' };
+      records['p-10'] = { playerId: 'p-10', status: 'J', isStarter: false, minutes: 18, source: 'manual' };
+    }
+
+    if (m.round === 7) {
+      records['p-1'] = { playerId: 'p-1', status: 'J', isStarter: true, minutes: 50, source: 'manual' };
+      records['p-2'] = { playerId: 'p-2', status: 'J', isStarter: true, minutes: 50, source: 'manual' };
+      records['p-3'] = { playerId: 'p-3', status: 'J', isStarter: true, minutes: 40, source: 'manual' };
+      records['p-4'] = { playerId: 'p-4', status: 'J', isStarter: true, minutes: 35, source: 'manual' };
+      records['p-5'] = { playerId: 'p-5', status: 'J', isStarter: false, minutes: 25, source: 'manual' };
+      records['p-6'] = { playerId: 'p-6', status: 'J', isStarter: true, minutes: 39, source: 'manual' };
+      records['p-7'] = { playerId: 'p-7', status: 'X', isStarter: false, minutes: 0, source: 'manual' };
+      records['p-8'] = { playerId: 'p-8', status: 'X', isStarter: false, minutes: 0, source: 'manual' };
+      records['p-9'] = { playerId: 'p-9', status: 'X', isStarter: false, minutes: 0, source: 'manual' };
+      records['p-10'] = { playerId: 'p-10', status: 'J', isStarter: false, minutes: 11, source: 'manual' };
+      records['p-11'] = { playerId: 'p-11', status: 'X', isStarter: false, minutes: 0, source: 'manual' };
+    }
 
     return {
       id: matchId,
