@@ -138,14 +138,21 @@ describe('Minute Engine - Event Based Calculation', () => {
     expect(kpis.attendancePercent).toBe(0.5);
   });
 
-  it('excludes matches before the stats start date but includes Perchera for later minute entry', () => {
+  it('counts minutes from every finished match, including multiple matches before the current season stats date', () => {
     const records = {
       'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: true, minutes: 30, source: 'manual' as const },
     };
     const matches = [
       { id: 'm-prec-1', date: '2026-10-03', isFinished: true, records },
       { id: 'm-prec-6', date: '2026-11-07', isFinished: true, records },
-      { id: 'm-next', date: '2026-11-14', isFinished: false, records },
+      {
+        id: 'm-next',
+        date: '2026-11-14',
+        isFinished: false,
+        records: {
+          'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: true, minutes: 0, source: 'manual' as const },
+        },
+      },
     ];
 
     const kpis = calculatePlayerKPIs('p-1', matches, [], 50);
@@ -154,6 +161,27 @@ describe('Minute Engine - Event Based Calculation', () => {
     expect(kpis.matchesAttended).toBe(2);
     expect(kpis.totalMinutes).toBe(60);
     expect(kpis.averageMinutesPerMatch).toBe(30);
+  });
+
+  it('counts manually entered minutes as evidence of a match even if an old act stayed scheduled', () => {
+    const kpis = calculatePlayerKPIs(
+      'p-1',
+      [{
+        id: 'm-manual',
+        date: '2026-10-03',
+        isFinished: false,
+        records: {
+          'p-1': { playerId: 'p-1', status: 'J', isStarter: true, minutes: 20, source: 'manual' },
+        },
+      }],
+      [],
+      50
+    );
+
+    expect(kpis.matchesTotal).toBe(1);
+    expect(kpis.matchesAttended).toBe(1);
+    expect(kpis.totalMinutes).toBe(20);
+    expect(kpis.averageMinutesPerMatch).toBe(20);
   });
 
   it('counts old training attendance only for Aitor as an individual historical exception', () => {
@@ -215,7 +243,37 @@ describe('Minute Engine - Event Based Calculation', () => {
     expect(aitor.matchesAttended).toBe(4);
     expect(aitor.totalMinutes).toBe(109);
     expect(aitor.averageMinutesPerMatch).toBe(27.25);
-    expect(otherPlayer.matchesTotal).toBe(0);
+    expect(otherPlayer.matchesTotal).toBe(2);
+    expect(otherPlayer.matchesAttended).toBe(2);
+    expect(otherPlayer.totalMinutes).toBe(65);
+  });
+
+  it('restores the original starters from the persisted match-start event', () => {
+    const events: MatchEvent[] = [
+      {
+        id: 'start',
+        matchId: 'm-test',
+        period: 1,
+        type: 'MATCH_START',
+        startingPlayerIds: ['p-1'],
+        matchSecond: 0,
+        realTimestamp: '2026-11-17T10:00:00Z',
+        createdBy: 'u1',
+      },
+      {
+        id: 'end',
+        matchId: 'm-test',
+        period: 1,
+        type: 'HALF_END',
+        matchSecond: 600,
+        realTimestamp: '2026-11-17T10:10:00Z',
+        createdBy: 'u1',
+      },
+    ];
+
+    const result = calculateMinutesFromEvents(events, []);
+
+    expect(result.playerMinutes['p-1']).toBe(10);
   });
 
   it('Debutantes A: las asistencias cuentan estrictamente a partir de 2026-11-12 y partidos a partir de 2026-11-13', () => {

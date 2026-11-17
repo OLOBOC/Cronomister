@@ -6,6 +6,7 @@ import {
   TrainingSession,
   AttendanceRecord,
   Match,
+  MatchStatus,
   MatchEvent,
   UserProfile,
   UserRole,
@@ -19,6 +20,7 @@ import { assertPermission, DEFAULT_DELEGATE_PERMISSIONS } from './permissions';
 import { filterAttendanceForTeam } from './attendance';
 import { getLinkedPlayerId } from './statsPolicy';
 import { supabase } from './supabase';
+import { mergeTeamMatches } from './cloudMerge';
 
 const STORAGE_KEYS = {
   TEAMS: 'cronomister_teams',
@@ -33,6 +35,8 @@ const STORAGE_KEYS = {
   USERS: 'cronomister_users',
   ACTIVITY_LOGS: 'cronomister_activity_logs',
 };
+const DEBUTANTES_TEAM_IDS = new Set(['team-deba', 'team-debb']);
+const DEBUTANTES_DURATION_MIGRATION_KEY = 'cronomister_debutantes_20_minute_halves_v1';
 
 // Event emitter para reactividad en componentes React sin dependencias externas pesadas
 type Listener = () => void;
@@ -169,8 +173,11 @@ function applyTeamCloudState(teamId: string, state: TeamCloudState): void {
   const teams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
   if (state.team) {
     const index = teams.findIndex((team) => team.id === teamId);
-    if (index === -1) teams.push(state.team);
-    else teams[index] = state.team;
+    const incomingTeam = DEBUTANTES_TEAM_IDS.has(teamId)
+      ? { ...state.team, settings: { ...state.team.settings, halfDurationMinutes: 20 } }
+      : state.team;
+    if (index === -1) teams.push(incomingTeam);
+    else teams[index] = incomingTeam;
     setLocalStorageWithoutCloudSync(STORAGE_KEYS.TEAMS, teams);
   }
 
@@ -192,7 +199,10 @@ function applyTeamCloudState(teamId: string, state: TeamCloudState): void {
     (item) => teamPlayerIds.has(item.playerId) || previousPlayerIds.has(item.playerId),
     state.attendance
   );
-  mergeCloudCollection<Match>(STORAGE_KEYS.MATCHES, (item) => item.teamId === teamId, state.matches);
+  if (state.matches) {
+    const matches = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
+    setLocalStorageWithoutCloudSync(STORAGE_KEYS.MATCHES, mergeTeamMatches(matches, teamId, state.matches));
+  }
   const matchIds = new Set([...previousMatchIds, ...(state.matches || []).map((item) => item.id)]);
   mergeCloudCollection<MatchEvent>(STORAGE_KEYS.EVENTS, (item) => matchIds.has(item.matchId), state.events);
   mergeCloudCollection<AppNote>(STORAGE_KEYS.NOTES, (item) => item.teamId === teamId, state.notes);
@@ -368,7 +378,8 @@ export function initStore() {
             mergedMatches[seedIndex].scoreMareo = pm.scoreMareo;
             mergedMatches[seedIndex].scoreRival = pm.scoreRival;
           }
-        } else if (!pm.id.startsWith('m-prec-') && !pm.id.startsWith('m-deba-')) {
+        } else {
+          // Mantener partidos personalizados aunque su identificador comparta el prefijo del calendario.
           mergedMatches.push(pm);
         }
       });
@@ -434,6 +445,20 @@ export function initStore() {
     }
   } catch (err) {
     console.warn('[initStore] Error sincronizando J7 Codema:', err);
+  }
+
+  if (localStorage.getItem(DEBUTANTES_DURATION_MIGRATION_KEY) !== 'done') {
+    const teams = getFromStorage<Team[]>(STORAGE_KEYS.TEAMS, []);
+    let updated = false;
+    teams.forEach((team) => {
+      if (DEBUTANTES_TEAM_IDS.has(team.id) && team.settings.halfDurationMinutes !== 20) {
+        team.settings = { ...team.settings, halfDurationMinutes: 20 };
+        updated = true;
+      }
+    });
+    if (updated) localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(teams));
+    localStorage.setItem(DEBUTANTES_DURATION_MIGRATION_KEY, 'done');
+    if (updated) notify();
   }
 
   // Escuchar cambios de otras pestañas
@@ -599,15 +624,28 @@ export async function syncSharedDataFromCloud(teamId?: string): Promise<void> {
       }
     });
 
+    const outdatedDebutantesTeamIds: string[] = [];
     applyingCloudState = true;
     try {
-      states.forEach((state, teamId) => applyTeamCloudState(teamId, state));
+      states.forEach((state, teamId) => {
+        if (
+          state.team &&
+          DEBUTANTES_TEAM_IDS.has(teamId) &&
+          state.team.settings.halfDurationMinutes !== 20
+        ) {
+          outdatedDebutantesTeamIds.push(teamId);
+        }
+        applyTeamCloudState(teamId, state);
+      });
     } finally {
       applyingCloudState = false;
     }
     notify();
 
     if (getCurrentUser().role === 'admin') {
+      for (const outdatedTeamId of outdatedDebutantesTeamIds) {
+        await saveTeamCloudState(outdatedTeamId);
+      }
       for (const teamId of teamIdsToInitialize) {
         if (!states.has(teamId) && localTeams.some((team) => team.id === teamId)) {
           await saveTeamCloudState(teamId);
@@ -1199,10 +1237,19 @@ export function addMatch(
 
   const targetTeam = teamId || getCurrentTeamId();
   const all = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
+  const generatedId = globalThis.crypto?.randomUUID
+    ? globalThis.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  let id = `m-${generatedId}`;
+  let collision = 1;
+  while (all.some((existingMatch) => existingMatch.id === id)) {
+    id = `m-${generatedId}-${collision}`;
+    collision += 1;
+  }
 
   const newMatch: Match = {
     ...match,
-    id: `m-${Date.now()}`,
+    id,
     teamId: targetTeam,
     status: 'scheduled',
     records: {},
@@ -1302,6 +1349,48 @@ export function deleteMatch(matchId: string): boolean {
     JSON.stringify(matchToDelete),
     undefined,
     matchToDelete.teamId
+  );
+  return true;
+}
+
+export function saveManualMatchSheet(
+  matchId: string,
+  updates: {
+    status: MatchStatus;
+    scoreMareo: number | null;
+    scoreRival: number | null;
+    records: Record<string, MatchPlayerRecord>;
+  }
+): boolean {
+  const user = getCurrentUser();
+  const all = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
+  const index = all.findIndex((item) => item.id === matchId);
+  if (index === -1) return false;
+
+  const match = all[index];
+  assertPermission(user, match.teamId, 'edit_convocatoria', 'editar convocatoria y alineaciones');
+  if (match.status === 'finished' && (updates.scoreMareo !== undefined || updates.scoreRival !== undefined)) {
+    assertPermission(user, match.teamId, 'edit_past_data', 'modificar actas de partidos finalizados');
+  }
+
+  const records = { ...match.records };
+  Object.entries(updates.records).forEach(([playerId, record]) => {
+    records[playerId] = { ...records[playerId], ...record };
+  });
+  const updatedMatch: Match = { ...match, status: updates.status, records };
+  if (updates.scoreMareo === null) delete updatedMatch.scoreMareo;
+  else updatedMatch.scoreMareo = updates.scoreMareo;
+  if (updates.scoreRival === null) delete updatedMatch.scoreRival;
+  else updatedMatch.scoreRival = updates.scoreRival;
+  all[index] = updatedMatch;
+  setToStorage(STORAGE_KEYS.MATCHES, all);
+
+  logActivity(
+    'EDICION_ACTA_MANUAL',
+    `Acta y minutos manuales actualizados en partido J${match.round}`,
+    JSON.stringify({ scoreMareo: match.scoreMareo, scoreRival: match.scoreRival, records: match.records }),
+    JSON.stringify({ scoreMareo: updatedMatch.scoreMareo, scoreRival: updatedMatch.scoreRival, records: updatedMatch.records }),
+    match.teamId
   );
 
   return true;

@@ -1,4 +1,4 @@
-﻿export const STATS_START_DATE = '2026-11-09';
+export const STATS_START_DATE = '2026-11-09';
 export const DEBA_ATTENDANCE_START_DATE = '2026-11-12';
 export const DEBA_MATCH_START_DATE = '2026-11-13';
 export const PERCHERA_MATCH_ID = 'm-prec-6';
@@ -28,20 +28,14 @@ export function isMatchIncludedInMinuteStats(
   playerId?: string
 ): boolean {
   if (playerId === 'p-8') return true;
-  if (match.id === PERCHERA_MATCH_ID || match.id === CODEMA_MATCH_ID) return true;
 
-  // Si el partido pertenece a Debutantes A o es de un jugador exclusivo de Debutantes A:
-  // cuenta a partir del primer partido oficial (viernes 2026-11-13)
+  // Debutantes A solo cuenta desde su primer partido oficial.
   const isDeba =
     match.teamId === 'team-deba' ||
     match.id?.startsWith('m-deba-') ||
     (Boolean(playerId?.startsWith('p-da-')) && !getLinkedPlayerId(playerId || ''));
 
-  if (isDeba) {
-    return Boolean(match.date && match.date >= DEBA_MATCH_START_DATE);
-  }
-
-  return Boolean(match.date && match.date >= STATS_START_DATE);
+  return !isDeba || Boolean(match.date && match.date >= DEBA_MATCH_START_DATE);
 }
 
 export function isAttendanceIncludedInStats(record: { playerId: string; sessionId?: string }): boolean {

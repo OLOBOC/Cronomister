@@ -216,6 +216,10 @@ export default function Home() {
       .catch((error: unknown) => setCloudSyncErrorState((error as Error).message));
   };
 
+  const selectedMatchData = selectedMatch
+    ? matches.find((match) => match.id === selectedMatch.id) || selectedMatch
+    : null;
+
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--ink)] flex flex-col">
       {/* Cabecera unificada con acceso directo a Admin Panel para el entrenador */}
@@ -271,15 +275,15 @@ export default function Home() {
             onBack={() => setSelectedPlayer(null)}
             onRefresh={syncDataFromStore}
           />
-        ) : selectedMatch ? (
+        ) : selectedMatchData ? (
           /* Detalle de Partido */
           <MatchDetailView
-            match={selectedMatch}
+            match={selectedMatchData}
             team={currentTeam}
             players={players}
             onBack={() => setSelectedMatch(null)}
             onPlayLive={() => {
-              setActiveLiveMatch(selectedMatch);
+              setActiveLiveMatch(selectedMatchData);
             }}
             onRefresh={syncDataFromStore}
           />

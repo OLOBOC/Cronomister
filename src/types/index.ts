@@ -160,6 +160,7 @@ export interface MatchEvent {
   matchId: string;
   period: 1 | 2;
   type: MatchEventType;
+  startingPlayerIds?: string[];
   playerOutId?: string; // En cambios: jugador que sale
   playerInId?: string;  // En cambios: jugador que entra
   goalPlayerId?: string;// En goles: jugador que marcó (opcional)

@@ -98,7 +98,7 @@ export function getInitialSeedData() {
       name: 'Debutantes A',
       settings: {
         playersOnPitch: 5,
-        halfDurationMinutes: 25,
+        halfDurationMinutes: 20,
         showPositions: false,
         trainingDays: [2, 4],
         isConfigured: true, // Calendario oficial cargado desde liga
@@ -110,7 +110,7 @@ export function getInitialSeedData() {
       name: 'Debutantes B',
       settings: {
         playersOnPitch: 5,
-        halfDurationMinutes: 25,
+        halfDurationMinutes: 20,
         showPositions: false,
         trainingDays: [2, 4],
         isConfigured: false, // Avisa si no están configurados

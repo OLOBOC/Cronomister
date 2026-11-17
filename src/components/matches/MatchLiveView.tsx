@@ -93,11 +93,9 @@ export function MatchLiveView({
       setBench(players.filter((p) => !onPitch.includes(p.id)).map((p) => p.id));
       setPhase(calc.currentMatchSecond >= halfSeconds && calc.currentMatchSecond < totalMatchSeconds ? 'break' : 'live');
     } else {
-      // Setup inicial: primeros N jugadores como titulares por defecto
-      const initialStarters = players.slice(0, pitchCapacity).map((p) => p.id);
-      const initialBench = players.slice(pitchCapacity).map((p) => p.id);
-      setStarters(initialStarters);
-      setBench(initialBench);
+      // Exigir una selección explícita evita iniciar el partido con una alineación accidental.
+      setStarters([]);
+      setBench(players.map((p) => p.id));
       setUncalled([]);
     }
 
@@ -203,6 +201,7 @@ export function MatchLiveView({
       period: 1,
       type: 'MATCH_START',
       matchSecond: 0,
+      startingPlayerIds: [...starters],
       comment: 'Inicio del partido',
     });
 
@@ -381,11 +380,9 @@ export function MatchLiveView({
   // Guardar partido finalizado
   const handleFinishAndSave = () => {
     // 1. Asegurar evento MATCH_END
-    const calc = calculateMinutesFromEvents(
-      events,
-      // Jugadores que empezaron como titulares en MATCH_START
-      events.length > 0 && events[0].type === 'MATCH_START' ? starters : []
-    );
+    const calc = calculateMinutesFromEvents(events, starters);
+    const startingPlayerIds =
+      events.find((event) => event.type === 'MATCH_START')?.startingPlayerIds || starters;
 
     // 2. Construir records con origen 'direct'
     const finalRecords: Record<string, MatchPlayerRecord> = {};
@@ -396,7 +393,7 @@ export function MatchLiveView({
         finalRecords[p.id] = {
           playerId: p.id,
           status: 'J',
-          isStarter: starters.includes(p.id),
+          isStarter: startingPlayerIds.includes(p.id),
           minutes: mins,
           source: 'direct', // Origen directo de cronómetro
         };

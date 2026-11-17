@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Match, Player, Team, MatchStatus } from '@/types';
 import { X, Check, Clock } from 'lucide-react';
-import { updateMatchRosterManual, updateMatch } from '@/lib/storage';
+import { saveManualMatchSheet } from '@/lib/storage';
 import { CONVOCATION_LABELS } from '@/lib/terminology';
 
 interface ManualMinutesModalProps {
@@ -64,22 +64,27 @@ export function ManualMinutesModal({
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Guardar marcador y estado
-    updateMatch(match.id, {
+    const updatedRecords = Object.fromEntries(
+      Object.entries(records).map(([playerId, rec]) => [
+        playerId,
+        {
+          playerId,
+          status: rec.status,
+          isStarter: rec.isStarter,
+          minutes: rec.status === 'J' ? rec.minutes : 0,
+          source: 'manual' as const,
+        },
+      ])
+    );
+    if (!saveManualMatchSheet(match.id, {
+      status: matchStatus,
       scoreMareo: hasScore && matchStatus === 'finished' ? scoreMareo : null,
       scoreRival: hasScore && matchStatus === 'finished' ? scoreRival : null,
-      status: matchStatus,
-    });
-
-    // Guardar minutos de cada jugador con origen 'manual'
-    Object.entries(records).forEach(([playerId, rec]) => {
-      updateMatchRosterManual(match.id, playerId, {
-        status: rec.status,
-        isStarter: rec.isStarter,
-        minutes: rec.status === 'J' ? rec.minutes : 0,
-        source: 'manual', // Auditoría obligatoria
-      });
-    });
+      records: updatedRecords,
+    })) {
+      alert('No se encontró el partido. Actualiza la pantalla e inténtalo de nuevo.');
+      return;
+    }
 
     if (onSaved) onSaved();
     onClose();

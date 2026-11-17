@@ -1,4 +1,4 @@
-﻿import { MatchEvent, MatchPlayerRecord } from '@/types';
+import { MatchEvent, MatchPlayerRecord } from '@/types';
 import { isAttendanceIncludedInStats, isMatchIncludedInMinuteStats, getLinkedPlayerId } from './statsPolicy';
 
 export interface PlayerInterval {
@@ -24,6 +24,7 @@ export function calculateMinutesFromEvents(
   starters: string[]
 ): CalculationResult {
   const sortedEvents = [...events].sort((a, b) => a.matchSecond - b.matchSecond);
+  const startingPlayerIds = sortedEvents.find((event) => event.type === 'MATCH_START')?.startingPlayerIds || starters;
 
   const playerSeconds: Record<string, number> = {};
   const activeEntrySecond: Record<string, number> = {};
@@ -39,7 +40,7 @@ export function calculateMinutesFromEvents(
       case 'MATCH_START': {
         isClockRunning = true;
         // Los titulares entran al segundo ev.matchSecond (normalmente 0)
-        for (const pid of starters) {
+        for (const pid of startingPlayerIds) {
           activeOnPitch.add(pid);
           activeEntrySecond[pid] = ev.matchSecond;
         }
@@ -161,6 +162,9 @@ export function calculatePlayerKPIs(
 
   const relevantMatches = matches
     .filter((match) => isMatchIncludedInMinuteStats(match, playerId))
+    .filter((match) => match.isFinished || Object.values(match.records).some(
+      (record) => record.status === 'J' && record.minutes > 0
+    ))
     .filter((m) => {
       const rec = getPlayerRecord(m);
       return rec && (rec.status === 'J' || rec.status === 'X');

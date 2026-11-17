@@ -213,15 +213,6 @@ export function MatchDetailView({
       </div>
 
       {/* Modal de edición manual */}
-      <ManualMinutesModal
-        isOpen={isManualModalOpen}
-        onClose={() => setIsManualModalOpen(false)}
-        match={match}
-        team={team}
-        players={players}
-        onSaved={onRefresh}
-      />
-
       {/* Modal de edición completa de partido */}
       <EditMatchModal
         isOpen={isEditModalOpen}
@@ -234,6 +225,16 @@ export function MatchDetailView({
           onBack();
         }}
       />
+      {isManualModalOpen && (
+        <ManualMinutesModal
+          isOpen
+          onClose={() => setIsManualModalOpen(false)}
+          match={match}
+          team={team}
+          players={players}
+          onSaved={onRefresh}
+        />
+      )}
     </div>
   );
 }
