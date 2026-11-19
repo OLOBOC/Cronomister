@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Match, Team, Player, UserProfile, MatchEvent, MatchPlayerRecord } from '@/types';
@@ -18,6 +18,7 @@ import {
   appendMatchEvent,
   getMatchEvents,
   updateMatch,
+  getMatchHalfDuration,
 } from '@/lib/storage';
 import { calculateMinutesFromEvents } from '@/lib/minuteEngine';
 
@@ -39,7 +40,7 @@ export function MatchLiveView({
   onFinishMatch,
 }: MatchLiveViewProps) {
   const pitchCapacity = team.settings.playersOnPitch;
-  const halfSeconds = team.settings.halfDurationMinutes * 60;
+  const halfSeconds = getMatchHalfDuration(match, team) * 60;
   const totalMatchSeconds = halfSeconds * 2;
 
   // Estado previo (setup) vs juego (live)

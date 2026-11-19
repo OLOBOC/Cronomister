@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf';
+﻿import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Player, Team, Match, TrainingSession, AttendanceRecord, AppNote } from '@/types';
 import { calculatePlayerKPIs } from './minuteEngine';

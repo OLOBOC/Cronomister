@@ -98,7 +98,7 @@ export function getInitialSeedData() {
       name: 'Debutantes A',
       settings: {
         playersOnPitch: 5,
-        halfDurationMinutes: 25,
+        halfDurationMinutes: 20, // 2 × 20 min = 40 min totales
         showPositions: false,
         trainingDays: [2, 4],
         isConfigured: true, // Calendario oficial cargado desde liga

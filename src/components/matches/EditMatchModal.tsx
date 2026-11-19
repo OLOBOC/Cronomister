@@ -1,8 +1,8 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { Match, Team, MatchType, MatchStatus } from '@/types';
-import { X, Trophy, Medal, Users2, Trash2, Save, Calendar, ShieldAlert } from 'lucide-react';
+import { X, Trophy, Medal, Users2, Trash2, Save, Calendar, ShieldAlert, Clock } from 'lucide-react';
 import { updateMatch, deleteMatch } from '@/lib/storage';
 
 interface EditMatchModalProps {
@@ -29,6 +29,7 @@ export function EditMatchModal({
   const [rival, setRival] = useState(match.rival);
   const [isHome, setIsHome] = useState(match.isHome);
   const [status, setStatus] = useState<MatchStatus>(match.status || 'scheduled');
+  const [matchHalfDuration, setMatchHalfDuration] = useState<number | ''>(match.halfDurationMinutes ?? '');
   
   const hasInitialScore = match.scoreMareo !== undefined && match.scoreRival !== undefined;
   const [hasScore, setHasScore] = useState(hasInitialScore);
@@ -60,6 +61,7 @@ export function EditMatchModal({
         status,
         scoreMareo: hasScore && status === 'finished' ? scoreMareo : null,
         scoreRival: hasScore && status === 'finished' ? scoreRival : null,
+        halfDurationMinutes: matchHalfDuration !== '' ? Number(matchHalfDuration) : undefined,
       });
 
       onSaved();
@@ -214,6 +216,41 @@ export function EditMatchModal({
               placeholder="Ej. Real Oviedo, Astur, etc."
               className="w-full px-3 py-2 rounded-xl border border-[var(--line)] bg-[var(--bg)] text-xs font-medium"
             />
+          </div>
+
+          {/* Duración personalizada del partido (opcional) */}
+          <div>
+            <label className="block text-[11px] font-bold text-[var(--mute)] uppercase mb-1 flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Duración por parte (min) · opcional
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={90}
+                value={matchHalfDuration}
+                onChange={(e) => setMatchHalfDuration(e.target.value === '' ? '' : Number(e.target.value))}
+                placeholder={String(team.settings.halfDurationMinutes)}
+                className="w-24 px-3 py-2 rounded-xl border border-[var(--line)] bg-[var(--bg)] text-xs font-medium"
+              />
+              <span className="text-[11px] text-[var(--mute)]">
+                Por defecto: {team.settings.halfDurationMinutes} min/parte · {team.settings.halfDurationMinutes * 2} min totales
+                {matchHalfDuration !== '' && (
+                  <span className="ml-1 text-blue-600 font-semibold">
+                    → Este partido: {matchHalfDuration} min/parte · {Number(matchHalfDuration) * 2} min totales
+                  </span>
+                )}
+              </span>
+            </div>
+            {matchHalfDuration !== '' && (
+              <button
+                type="button"
+                onClick={() => setMatchHalfDuration('')}
+                className="mt-1 text-[10px] text-[var(--mute)] underline"
+              >
+                Restaurar duración del equipo
+              </button>
+            )}
           </div>
 
           {/* Condición de Local / Visitante */}

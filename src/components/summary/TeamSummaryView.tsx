@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { Team, Player, Match, AttendanceRecord, UserProfile } from '@/types';

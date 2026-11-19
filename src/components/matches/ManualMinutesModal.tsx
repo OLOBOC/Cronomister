@@ -1,9 +1,9 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { Match, Player, Team, MatchStatus } from '@/types';
 import { X, Check, Clock } from 'lucide-react';
-import { updateMatchRosterManual, updateMatch } from '@/lib/storage';
+import { updateMatchRosterManual, updateMatch, getMatchTotalDuration } from '@/lib/storage';
 import { CONVOCATION_LABELS } from '@/lib/terminology';
 
 interface ManualMinutesModalProps {
@@ -23,7 +23,7 @@ export function ManualMinutesModal({
   players,
   onSaved,
 }: ManualMinutesModalProps) {
-  const totalDuration = team.settings.halfDurationMinutes * 2;
+  const totalDuration = getMatchTotalDuration(match, team);
 
   const [records, setRecords] = useState<Record<string, { status: 'J' | 'X'; isStarter: boolean; minutes: number }>>(() => {
     const initial: Record<string, { status: 'J' | 'X'; isStarter: boolean; minutes: number }> = {};

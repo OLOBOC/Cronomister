@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState } from 'react';
 import { Match, Team, Player, UserProfile } from '@/types';
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { ManualMinutesModal } from './ManualMinutesModal';
 import { EditMatchModal } from './EditMatchModal';
-import { updateMatch } from '@/lib/storage';
+import { updateMatch, getMatchTotalDuration } from '@/lib/storage';
 import { MINUTES_SOURCE_LABELS } from '@/lib/terminology';
 
 interface MatchDetailViewProps {
@@ -38,7 +38,7 @@ export function MatchDetailView({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [generalNote, setGeneralNote] = useState(match.generalNote || '');
 
-  const totalDuration = team.settings.halfDurationMinutes * 2;
+  const totalDuration = getMatchTotalDuration(match, team);
   const recordsList = Object.values(match.records || {});
   const playedRecords = recordsList.filter((r) => r.status === 'J');
 

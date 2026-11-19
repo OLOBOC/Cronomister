@@ -304,7 +304,7 @@ function setToStorage<T>(key: string, value: T): void {
 export function initStore() {
   if (typeof window === 'undefined') return;
 
-  const STORE_VERSION = 'cronomister_v7_debutantes_a';
+  const STORE_VERSION = 'cronomister_v8_deba_duration';
   const currentVersion = localStorage.getItem('cronomister_store_version');
 
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
@@ -336,7 +336,8 @@ export function initStore() {
       // No iniciar sesión automáticamente por defecto en nuevos dispositivos para proteger el acceso de Admin
       localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
     } else {
-      // Actualización a v7: actualizar plantilla oficial de Debutantes A (9 jugadores)
+      // Actualización a v8: actualizar duración de Debutantes A a 2×20 min,
+      // actualizar plantilla oficial de Debutantes A (9 jugadores)
       // y vincular los jugadores dobles con Pre C (Martín Álvarez y José Díaz "Pepe").
       // Las asistencias reales pasadas por el cuerpo técnico se preservan estrictamente intactas.
 
@@ -388,7 +389,13 @@ export function initStore() {
 
       const mergedTeams = seed.teams.map((st) => {
         const existing = prevTeams.find((pt) => pt.id === st.id);
-        return existing ? { ...existing, settings: { ...existing.settings, isConfigured: true } } : st;
+        if (!existing) return st;
+        // Para team-deba: actualizar también la duración a 20 min/parte
+        const updatedSettings =
+          st.id === 'team-deba'
+            ? { ...existing.settings, isConfigured: true, halfDurationMinutes: 20 }
+            : { ...existing.settings, isConfigured: true };
+        return { ...existing, settings: updatedSettings };
       });
 
       localStorage.setItem(STORAGE_KEYS.MATCHES, JSON.stringify(mergedMatches));
@@ -1183,6 +1190,16 @@ export function getMatches(teamId?: string): Match[] {
 export function getMatchById(matchId: string): Match | null {
   const all = getFromStorage<Match[]>(STORAGE_KEYS.MATCHES, []);
   return all.find((m) => m.id === matchId) || null;
+}
+
+/** Devuelve la duración de una parte en minutos, usando el override del partido si existe */
+export function getMatchHalfDuration(match: Match, team: Team): number {
+  return match.halfDurationMinutes ?? team.settings.halfDurationMinutes;
+}
+
+/** Devuelve la duración total del partido en minutos */
+export function getMatchTotalDuration(match: Match, team: Team): number {
+  return getMatchHalfDuration(match, team) * 2;
 }
 
 export function addMatch(

@@ -139,6 +139,7 @@ export interface Match {
   lockedByUserId?: string | null;
   lockedByUserName?: string | null;
   lockedAt?: string | null;
+  halfDurationMinutes?: number; // Override de duración por partido (ej. torneos, formatos especiales)
   records: Record<string, MatchPlayerRecord>; // playerId -> Record
   createdAt: string;
 }
