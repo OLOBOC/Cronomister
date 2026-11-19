@@ -364,4 +364,50 @@ describe('Minute Engine - Event Based Calculation', () => {
     expect(kpis.matchesAsStarter).toBe(1);
     expect(kpis.totalMinutes).toBe(45); // 20 + 25 = 45 min
   });
+
+  it('calculates exact minutes and averages for Pre C match against Codema C (3-2)', () => {
+    const codemaMatch = {
+      id: 'm-prec-7',
+      date: '2026-11-14',
+      isFinished: true,
+      records: {
+        'p-1': { playerId: 'p-1', status: 'J' as const, isStarter: true, minutes: 50, source: 'manual' as const },
+        'p-2': { playerId: 'p-2', status: 'J' as const, isStarter: true, minutes: 50, source: 'manual' as const },
+        'p-3': { playerId: 'p-3', status: 'J' as const, isStarter: true, minutes: 40, source: 'manual' as const },
+        'p-4': { playerId: 'p-4', status: 'J' as const, isStarter: true, minutes: 35, source: 'manual' as const },
+        'p-5': { playerId: 'p-5', status: 'J' as const, isStarter: false, minutes: 25, source: 'manual' as const },
+        'p-6': { playerId: 'p-6', status: 'J' as const, isStarter: true, minutes: 39, source: 'manual' as const },
+        'p-10': { playerId: 'p-10', status: 'J' as const, isStarter: false, minutes: 11, source: 'manual' as const },
+      },
+    };
+
+    const unaiKpis = calculatePlayerKPIs('p-1', [codemaMatch], [], 50);
+    const marioKpis = calculatePlayerKPIs('p-2', [codemaMatch], [], 50);
+    const pepeKpis = calculatePlayerKPIs('p-3', [codemaMatch], [], 50);
+    const ginoKpis = calculatePlayerKPIs('p-6', [codemaMatch], [], 50);
+    const martinKpis = calculatePlayerKPIs('p-4', [codemaMatch], [], 50);
+    const gonzaloKpis = calculatePlayerKPIs('p-5', [codemaMatch], [], 50);
+    const jorgeKpis = calculatePlayerKPIs('p-10', [codemaMatch], [], 50);
+
+    expect(unaiKpis.totalMinutes).toBe(50);
+    expect(unaiKpis.averageMinutesPerMatch).toBe(50);
+
+    expect(marioKpis.totalMinutes).toBe(50);
+    expect(marioKpis.averageMinutesPerMatch).toBe(50);
+
+    expect(pepeKpis.totalMinutes).toBe(40);
+    expect(pepeKpis.averageMinutesPerMatch).toBe(40);
+
+    expect(ginoKpis.totalMinutes).toBe(39);
+    expect(ginoKpis.averageMinutesPerMatch).toBe(39);
+
+    expect(martinKpis.totalMinutes).toBe(35);
+    expect(martinKpis.averageMinutesPerMatch).toBe(35);
+
+    expect(gonzaloKpis.totalMinutes).toBe(25);
+    expect(gonzaloKpis.averageMinutesPerMatch).toBe(25);
+
+    expect(jorgeKpis.totalMinutes).toBe(11);
+    expect(jorgeKpis.averageMinutesPerMatch).toBe(11);
+  });
 });

@@ -304,7 +304,7 @@ function setToStorage<T>(key: string, value: T): void {
 export function initStore() {
   if (typeof window === 'undefined') return;
 
-  const STORE_VERSION = 'cronomister_v8_deba_duration';
+  const STORE_VERSION = 'cronomister_v9_deba_duration_codema';
   const currentVersion = localStorage.getItem('cronomister_store_version');
 
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
@@ -362,7 +362,7 @@ export function initStore() {
       prevMatches.forEach((pm) => {
         const seedIndex = mergedMatches.findIndex((m) => m.id === pm.id);
         if (seedIndex !== -1) {
-          const isPrecOldSeed = pm.id.startsWith('m-prec-') && Number(pm.id.replace('m-prec-', '')) <= 6;
+          const isPrecOldSeed = pm.id.startsWith('m-prec-') && Number(pm.id.replace('m-prec-', '')) <= 7;
           if (!isPrecOldSeed && Object.keys(pm.records || {}).length > 0) {
             mergedMatches[seedIndex].records = pm.records;
             mergedMatches[seedIndex].status = pm.status;
@@ -410,23 +410,26 @@ export function initStore() {
     notify();
   }
 
-  // Comprobar y restablecer el partido de J7 vs Codema "C" si quedó marcado de prueba
+  // Asegurar que el partido de J7 vs Codema "C" figure con el resultado oficial 3-2 y minutaje oficial
   try {
     const rawMatches = localStorage.getItem(STORAGE_KEYS.MATCHES);
     if (rawMatches) {
       const currentMatches: Match[] = JSON.parse(rawMatches);
+      const seedCodema = getInitialSeedData().matches.find((m) => m.id === 'm-prec-7');
       let matchFixed = false;
       const fixed = currentMatches.map((m) => {
         if (
           (m.id === 'm-prec-7' || (m.round === 7 && m.rival.toLowerCase().includes('codema'))) &&
-          (m.scoreMareo !== undefined || m.status === 'finished' || Object.keys(m.records || {}).length > 0)
+          (m.status !== 'finished' || m.scoreMareo !== 3 || m.scoreRival !== 2 || !m.records || Object.keys(m.records).length === 0)
         ) {
           matchFixed = true;
-          const { scoreMareo, scoreRival, ...rest } = m;
           return {
-            ...rest,
-            status: 'scheduled' as const,
-            records: {},
+            ...m,
+            status: 'finished' as const,
+            scoreMareo: 3,
+            scoreRival: 2,
+            generalNote: 'Victoria 3-2.',
+            records: seedCodema?.records || m.records,
           };
         }
         return m;
@@ -437,7 +440,7 @@ export function initStore() {
       }
     }
   } catch (err) {
-    console.warn('[initStore] Error verificando J7 Codema:', err);
+    console.warn('[initStore] Error sincronizando J7 Codema:', err);
   }
 
   // Escuchar cambios de otras pestañas

@@ -97,7 +97,7 @@ La aplicación viene precargada de forma predeterminada con los datos no persona
 
 - **Equipo Pre C**:
   - 11 jugadores oficiales: Unai (#1), Mario (#2), Jose (#3), Martín (#4), Gonzalo (#5), Gino (#6), Salvador (#7), Aitor (#8), Aleister (#9), Jorge (#10) y Tokyo (#11).
-  - Calendario de 7 jornadas (J1 Montevil, J2 Virgen Inmaculada A, J3 Lealtad C, J4 Gijón Femenino A, J5 Manuel Rubio B, J6 Gijón Perchera, J7 Próximo rival).
+  - Calendario de 7 jornadas (J1 Montevil, J2 Virgen Inmaculada A, J3 Lealtad C, J4 Gijón Femenino A, J5 Manuel Rubio B, J6 Gijón Perchera, J7 Codema C finalizado 3-2).
   - Sesiones de entrenamiento de martes y jueves desde el 01/09/2026.
   - Asistencia histórica registrada para Salvador Milano y compañeros hasta el 05/11/2026.
 - **Equipos Debutantes B y Debutantes A**:
