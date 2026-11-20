@@ -46,6 +46,8 @@ Si ya aplicaste hasta la 007, ejecuta `supabase/migrations/008_update_debutantes
 
 Si ya aplicaste hasta la 008, ejecuta únicamente `supabase/migrations/009_update_prec_codema_match.sql` para registrar el resultado final (3-2) y minutos de la Jornada 7 contra Codema "C".
 
+La duración de Debutantes A (20 minutos por parte) y la validación de los cinco titulares se actualizan con la aplicación; no requieren una migración SQL adicional. Al abrir la nueva versión, el administrador sincronizará la duración actualizada con Supabase.
+
 ---
 
 ## 3. Desactivar el Registro Público (Solo Invitación)

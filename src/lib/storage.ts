@@ -304,7 +304,7 @@ function setToStorage<T>(key: string, value: T): void {
 export function initStore() {
   if (typeof window === 'undefined') return;
 
-  const STORE_VERSION = 'cronomister_v9_deba_duration_codema';
+  const STORE_VERSION = 'cronomister_v10_deba_20_min_halves';
   const currentVersion = localStorage.getItem('cronomister_store_version');
 
   const existingTeams = localStorage.getItem(STORAGE_KEYS.TEAMS);
@@ -336,7 +336,7 @@ export function initStore() {
       // No iniciar sesión automáticamente por defecto en nuevos dispositivos para proteger el acceso de Admin
       localStorage.setItem(STORAGE_KEYS.CURRENT_TEAM_ID, JSON.stringify(seed.teams[0].id));
     } else {
-      // Actualización a v8: actualizar duración de Debutantes A a 2×20 min,
+      // Actualización de Debutantes A: 20 min por parte,
       // actualizar plantilla oficial de Debutantes A (9 jugadores)
       // y vincular los jugadores dobles con Pre C (Martín Álvarez y José Díaz "Pepe").
       // Las asistencias reales pasadas por el cuerpo técnico se preservan estrictamente intactas.
@@ -402,7 +402,8 @@ export function initStore() {
       localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(mergedPlayers));
       localStorage.setItem(STORAGE_KEYS.TEAMS, JSON.stringify(mergedTeams));
 
-      // Sincronizar plantilla de Debutantes A con Supabase
+      // Sincronizar la duración y la plantilla de Debutantes A con Supabase.
+      scheduleCloudSync(STORAGE_KEYS.TEAMS);
       scheduleCloudSync(STORAGE_KEYS.PLAYERS);
     }
 

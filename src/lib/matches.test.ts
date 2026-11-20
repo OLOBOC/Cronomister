@@ -134,6 +134,20 @@ describe('Gestión y edición de partidos y jugadores', () => {
     expect(jose?.linkedPlayerId).toBe('p-3');
   });
 
+  it('actualiza Debutantes A a 20 minutos por parte desde la versión anterior', () => {
+    const teams = JSON.parse(localStorageMock.getItem('cronomister_teams') || '[]');
+    const debutantes = teams.find((team: { id: string }) => team.id === 'team-deba');
+    debutantes.settings.halfDurationMinutes = 25;
+    localStorageMock.setItem('cronomister_teams', JSON.stringify(teams));
+    localStorageMock.setItem('cronomister_store_version', 'cronomister_v9_deba_duration_codema');
+
+    initStore();
+
+    const updatedTeam = JSON.parse(localStorageMock.getItem('cronomister_teams') || '[]')
+      .find((team: { id: string }) => team.id === 'team-deba');
+    expect(updatedTeam.settings.halfDurationMinutes).toBe(20);
+  });
+
   it('sincroniza automáticamente la asistencia de jugadores con doble equipo', () => {
     // Pasar lista para Martín Álvarez en Pre C
     const testDate = '2026-11-12';

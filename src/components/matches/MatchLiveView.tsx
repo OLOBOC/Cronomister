@@ -94,11 +94,9 @@ export function MatchLiveView({
       setBench(players.filter((p) => !onPitch.includes(p.id)).map((p) => p.id));
       setPhase(calc.currentMatchSecond >= halfSeconds && calc.currentMatchSecond < totalMatchSeconds ? 'break' : 'live');
     } else {
-      // Setup inicial: primeros N jugadores como titulares por defecto
-      const initialStarters = players.slice(0, pitchCapacity).map((p) => p.id);
-      const initialBench = players.slice(pitchCapacity).map((p) => p.id);
-      setStarters(initialStarters);
-      setBench(initialBench);
+      // Exigir que la alineación inicial se seleccione explícitamente.
+      setStarters([]);
+      setBench(players.map((p) => p.id));
       setUncalled([]);
     }
 
@@ -194,6 +192,11 @@ export function MatchLiveView({
   };
 
   const handleStartMatch = () => {
+    if (!hasLock) {
+      alert('No tienes el control de este partido. Vuelve a intentarlo cuando esté disponible.');
+      return;
+    }
+
     if (starters.length !== pitchCapacity) {
       alert(`Debes seleccionar exactamente ${pitchCapacity} jugadores titulares.`);
       return;
@@ -511,7 +514,7 @@ export function MatchLiveView({
 
           <button
             onClick={handleStartMatch}
-            disabled={starters.length !== pitchCapacity}
+            disabled={!hasLock || starters.length !== pitchCapacity}
             className="w-full mt-4 py-3.5 bg-[var(--red)] disabled:opacity-40 hover:bg-[var(--red-hover)] text-white font-black text-base rounded-2xl flex items-center justify-center gap-2 shadow-md transition-all"
           >
             <Play className="w-5 h-5 fill-current" />
